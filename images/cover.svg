@@ -5,24 +5,25 @@
 		<path d="M 0 0 Q 0.12 48.75 0 97.5 Q 0.99 146.25 0 195 Q 0.85 243.75 0 292.5 Q 0.75 341.25 0 390" transform="translate(25 30)"/>
 		<path d="M 0 0 Q 0.45 48.82 0 97.64 Q 0.09 146.46 0 195.28 Q -0.14 244.1 0 292.92 Q 0.46 341.74 0 390.56" transform="translate(375 22.71)"/>
 		<path d="M 0 6 Q 6.75 5.58 13.5 6 Q 21.75 5.44 30 6 M 1.8 15 Q 7.74 15.56 13.68 15 Q 20.94 14.84 28.2 15 M 0.6 24 Q 7.08 24.71 13.56 24 Q 21.48 24.73 29.4 24" transform="translate(320 52)"/>
-		<path d="M 0 19 Q -0.41 10 0 1 Q 3.63 6.42 7 12 Q 10.87 6.74 14 1 Q 14.38 10 14 19" transform="translate(45 92)"/>
-		<path d="M 0 1 Q 4.09 5.04 7 10 Q 9.89 5.02 14 1" transform="translate(65 92)"/>
-		<path d="M 7 10 Q 6.5 14.5 7 19" transform="translate(65 92)"/>
-		<path d="M 0 1 Q -0.05 10 0 19 Q 5.5 18.24 11 19" transform="translate(97 92)"/>
-		<path d="M 7 1 Q 6.44 10 7 19" transform="translate(117 92)"/>
-		<path d="M 13 4 Q 7.48 3.09 2 2 Q 2.28 5.13 1 8 Q 6.3 10.24 12 11 Q 12.56 13.99 13 17 Q 7 17.45 1 18" transform="translate(137 92)"/>
-		<path d="M 0 1 Q 7 1.28 14 1" transform="translate(157 92)"/>
-		<path d="M 7 1 Q 6.5 10 7 19" transform="translate(157 92)"/>
-		<path d="M 0 0 Q 21.39 0.24 42.78 0 Q 53.49 0.35 64.19 0 Q 86.6 0.09 109 0 Q 120.5 0.54 132 0" transform="translate(42 118)"/>
-		<path d="M 6 0 Q 3 0.47 0 0 Q 0.2 4.5 0 9 Q -0.33 13.5 0 18 Q 3 17.57 6 18" transform="translate(189 92)"/>
-		<path d="M 0 0 Q 3 -0.11 6 0 Q 5.78 4.5 6 9 Q 5.32 13.5 6 18 Q 3 18.68 0 18" transform="translate(209 92)"/>
+		<path d="M 0 1 Q -0.34 10 0 19 Q 5.5 18.91 11 19" transform="translate(45 92)"/>
+		<path d="M 7 1 Q 7.03 10 7 19" transform="translate(65 92)"/>
+		<path d="M 13 4 Q 7.35 3.83 2 2 Q 0.82 4.89 1 8 Q 6.69 8.81 12 11 Q 13.11 13.9 13 17 Q 7.01 17.61 1 18" transform="translate(85 92)"/>
+		<path d="M 0 1 Q 7 0.58 14 1" transform="translate(105 92)"/>
+		<path d="M 7 1 Q 6.68 10 7 19" transform="translate(105 92)"/>
+		<path d="M 0 1 Q 0.15 7.5 0 14 Q 1.57 16.85 4 19 Q 7 18.94 10 19 Q 11.37 16 14 14 Q 13.53 7.5 14 1" transform="translate(125 92)"/>
+		<path d="M 0 1 Q 0.37 10 0 19 Q 5.5 18.97 11 19" transform="translate(145 92)"/>
+		<path d="M 0 19 Q 4.09 10.23 7 1 Q 9.9 10.23 14 19" transform="translate(165 92)"/>
+		<path d="M 3 12 Q 7 12.51 11 12" transform="translate(165 92)"/>
+		<path d="M 0 0 Q 22.69 0.24 45.37 0 Q 56.73 0.35 68.08 0 Q 91.85 0.09 115.61 0 Q 127.8 0.54 140 0" transform="translate(42 118)"/>
+		<path d="M 6 0 Q 3 0.47 0 0 Q 0.2 4.5 0 9 Q -0.33 13.5 0 18 Q 3 17.57 6 18" transform="translate(197 92)"/>
+		<path d="M 0 0 Q 3 -0.11 6 0 Q 5.78 4.5 6 9 Q 5.32 13.5 6 18 Q 3 18.68 0 18" transform="translate(217 92)"/>
 		<path d="M 2.6 1 Q 13.79 0.06 25 0.53 Q 24.48 12.77 25.1 25 Q 13.05 24.27 1 25.14 Q 1.72 12.76 1.48 0.36" transform="translate(45 146)"/>
 		<path d="M 0 0 Q 3.34 0.04 6.68 0 Q 9.24 -0.48 11.8 0 Q 14.9 -0.14 18 0" transform="translate(45 213)"/>
 	</g>
 	<g fill="currentColor" stroke="none">
-		<circle cx="197.32" cy="101" r="1.5"/>
-		<circle cx="202" cy="101" r="1.5"/>
-		<circle cx="206.68" cy="101" r="1.5"/>
+		<circle cx="205.32" cy="101" r="1.5"/>
+		<circle cx="210" cy="101" r="1.5"/>
+		<circle cx="214.68" cy="101" r="1.5"/>
 		<circle cx="92" cy="163" r="1.5"/>
 		<circle cx="100" cy="163" r="1.5"/>
 		<circle cx="108" cy="163" r="1.5"/>
