@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	amountsIn,
 	countLabel,
+	measureLabel,
 	figures,
 	format,
 	line,
@@ -118,10 +119,32 @@ describe('reading a count', () => {
 		expect(amountsIn('2x').amount).toBeNull();
 	});
 
-	it('does not read units, only counts', () => {
-		// `500g` is one word; the count is `500` only when the g is not attached.
-		expect(amountsIn('500g Butter').amount).toBeNull();
-		expect(amountsIn('2L Milk').amount).toBeNull();
+	it('reads a unit as a measure, not a count', () => {
+		expect(amountsIn('500g Butter')).toMatchObject({
+			amount: '500g',
+			count: null,
+			measure: { value: 500, unit: 'g' },
+			name: 'Butter'
+		});
+		expect(amountsIn('2L Milk').measure).toStrictEqual({ value: 2, unit: 'L' });
+		expect(amountsIn('1,5 kg Potatos').measure).toStrictEqual({ value: 1.5, unit: 'kg' });
+		expect(amountsIn('250 ml Cream').measure).toStrictEqual({ value: 250, unit: 'ml' });
+	});
+
+	it('takes the short ways a unit is written', () => {
+		expect(amountsIn('1k Sugar').measure).toStrictEqual({ value: 1, unit: 'kg' });
+		expect(amountsIn('2K Sugar').measure).toStrictEqual({ value: 2, unit: 'kg' });
+		expect(amountsIn('300gr Feta').measure).toStrictEqual({ value: 300, unit: 'g' });
+		expect(amountsIn('300 G Feta').measure).toStrictEqual({ value: 300, unit: 'g' });
+		expect(amountsIn('1lt Oil').measure).toStrictEqual({ value: 1, unit: 'L' });
+		expect(amountsIn('1 l Oil').measure).toStrictEqual({ value: 1, unit: 'L' });
+	});
+
+	it('reads no unit that runs on into a word', () => {
+		expect(amountsIn('2 lemons')).toMatchObject({ amount: '2', count: 2, measure: null });
+		expect(amountsIn('3 grapefruits')).toMatchObject({ count: 3, measure: null });
+		expect(amountsIn('500gButter').amount).toBeNull();
+		expect(amountsIn('2 oz Ham').measure).toBeNull();
 	});
 
 	it('reads a bare leading number wherever it finds one', () => {
@@ -135,6 +158,7 @@ describe('a task with both', () => {
 		expect(amountsIn('2x Tomatos 20.00')).toStrictEqual({
 			amount: '2x',
 			count: 2,
+			measure: null,
 			name: 'Tomatos',
 			nameAt: 3,
 			cost: '20.00',
@@ -146,6 +170,7 @@ describe('a task with both', () => {
 		expect(amountsIn('Bread')).toStrictEqual({
 			amount: null,
 			count: null,
+			measure: null,
 			name: 'Bread',
 			nameAt: 0,
 			cost: null,
@@ -164,6 +189,12 @@ describe('what a row comes to', () => {
 
 	it('is the price itself when there is no count', () => {
 		expect(cents('Onions 5,90')).toBe(590);
+	});
+
+	it('is the price itself when the amount is a weight', () => {
+		// One pack of butter at 2,50, not five hundred of them.
+		expect(cents('500g Butter 2,50')).toBe(250);
+		expect(cents('1,5kg Potatos 3,00')).toBe(300);
 	});
 
 	it('is nothing when there is no price', () => {
@@ -248,6 +279,26 @@ describe('writing a count out', () => {
 
 	it('falls back to the dot when the group writes no prices', () => {
 		expect(countLabel(1.5, null)).toBe('1.5×');
+	});
+});
+
+describe('writing a measure out', () => {
+	const comma: Style = { separator: ',', decimals: 2, currency: null };
+	const label = (text: string, style: Style | null = null) =>
+		measureLabel(amountsIn(text).measure!, style);
+
+	it('writes each unit one way, whichever way it was typed', () => {
+		expect(label('1k Sugar')).toBe('1kg');
+		expect(label('1 KG Sugar')).toBe('1kg');
+		expect(label('300gr Feta')).toBe('300g');
+		expect(label('1lt Oil')).toBe('1L');
+		expect(label('250ML Cream')).toBe('250ml');
+	});
+
+	it('follows the group on a fraction, and pads nothing', () => {
+		expect(label('1.5kg Potatos', comma)).toBe('1,5kg');
+		expect(label('0,5 l Milk')).toBe('0.5L');
+		expect(label('2kg Potatos', comma)).toBe('2kg');
 	});
 });
 
@@ -369,7 +420,7 @@ describe('properties', () => {
 	});
 
 	it('never loses a character of what was typed', () => {
-		const arbAmount = fc.constantFrom('2x', '3', '1.5x', '2 x', '12×');
+		const arbAmount = fc.constantFrom('2x', '3', '1.5x', '2 x', '12×', '500g', '1,5 kg', '2L');
 		const arbName = fc.constantFrom('Tomatos', 'Red onions', 'Bread', '5 a day');
 		const arbCost = fc.constantFrom('5,08', '20.00', '10', '€1.20', '8,50€', '1.234,56');
 

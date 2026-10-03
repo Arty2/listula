@@ -2195,6 +2195,22 @@ relative` rather than a transform, which does not apply to an inline box.
       of your own; turning the paper back over without a code puts it back on
       the burger rather than spending it.
 
+134.  **A weight at the front of a task is read, and it is not a count.**
+      `500g`, `1,5 kg`, `2L`, `250ml` — a number with a metric unit on it — is
+      set apart and written back the way `2x` is written `2×`: in the group's
+      separator, never padded, and the unit in one form whichever way it was
+      typed. Metric only, because that is what a shopping list here is written
+      in; and only the short spellings people actually use on one — `k` for a
+      kilo, `gr` for grams, `lt` for a litre — rather than every word for every
+      unit, since a long table of abbreviations is a long table of words it
+      could mistake for something else. The unit has to end at a space, which
+      is what keeps `2 lemons` a count of two. **It does not multiply the
+      price**: `500g Butter 2,50` is one pack at 2,50, and reading it as five
+      hundred of them would make the total nonsense on exactly the rows it is
+      most likely to appear on. A price per kilo is not guessed at either; the
+      row counts once. A litre is written `L`, because `2l` in a mono face is a
+      digit away from `21`.
+
 ## Known limits
 
 - **Lose the code, lose the list.** No account, no email, no recovery. EXPORT
