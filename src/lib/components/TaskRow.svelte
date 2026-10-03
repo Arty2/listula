@@ -3,7 +3,7 @@
 	import Counter from './Counter.svelte';
 	import HandRect from './HandRect.svelte';
 	import TriCheckbox from './TriCheckbox.svelte';
-	import { amountsIn, countLabel, format, type Style } from '$lib/doc/amount';
+	import { amountsIn, countLabel, format, measureLabel, type Style } from '$lib/doc/amount';
 	import { fromEnd, offsetIn, spotAt } from '$lib/doc/caret';
 	import { langOf } from '$lib/doc/lang';
 	import { LIMITS } from '$lib/doc/limits';
@@ -128,7 +128,13 @@
 	 * happened to be typed, so one column does not read `5,08`, `20.00` and `10`
 	 * down its length. The stored text keeps every character of what was typed.
 	 */
-	const count = $derived(reading.count === null ? null : countLabel(reading.count, style));
+	const count = $derived(
+		reading.measure !== null
+			? measureLabel(reading.measure, style)
+			: reading.count === null
+				? null
+				: countLabel(reading.count, style)
+	);
 	const cost = $derived(
 		reading.money === null || style === null ? null : format(reading.money.cents, style)
 	);

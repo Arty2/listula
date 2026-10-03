@@ -1,6 +1,6 @@
 /**
- * What a shopping list is already carrying: a count at the front of a task and
- * a price at the back.
+ * What a shopping list is already carrying: a count or a weight at the front
+ * of a task and a price at the back.
  *
  * Nothing here is stored. A task is one string and stays one string — this
  * reads it on the way to the screen, the way `langOf` does, so the markdown
@@ -17,6 +17,11 @@ import type { Task } from './types';
 
 export type Currency = '€' | '$' | '£';
 
+/** Metric and nothing else: what a shopping list in grams and litres writes. */
+export type Unit = 'g' | 'kg' | 'ml' | 'L';
+
+export type Measure = { value: number; unit: Unit };
+
 export type Money = {
 	/** Integer minor units, so a sum never drifts. */
 	cents: number;
@@ -28,10 +33,18 @@ export type Money = {
 };
 
 export type Reading = {
-	/** The leading count, exactly as typed — `2x`, `3`, `1.5x` — or nothing. */
+	/**
+	 * The leading count or weight, exactly as typed — `2x`, `3`, `1.5x`, `500g`,
+	 * `1,5 kg` — or nothing.
+	 */
 	amount: string | null;
 	/** The same count as a number, so the price can be taken that many times. */
 	count: number | null;
+	/**
+	 * The same weight or volume, when the number carried a unit. Never a count:
+	 * `500g Butter 2,50` is one pack at 2,50, not five hundred of them.
+	 */
+	measure: Measure | null;
 	/** What is left in the middle. Never empty: it is the task. */
 	name: string;
 	/**
@@ -51,10 +64,27 @@ export type Reading = {
 };
 
 /**
- * A number, optionally followed by `x`, and then whitespace — so `2x TOMATOS`
- * and `3 POTATOS` both lead with a count and `2xTOMATOS` does not.
+ * A number, optionally followed by `x` or a unit, and then whitespace — so
+ * `2x TOMATOS`, `3 POTATOS` and `500g BUTTER` all lead with an amount and
+ * `2xTOMATOS` does not. The unit has to end before the space too, which is
+ * what keeps the `l` of `2 lemons` from being litres.
  */
-const AMOUNT = /^(\d+(?:[.,]\d+)?(?:\s?[x×])?)(?=\s)/;
+const AMOUNT = /^(\d+(?:[.,]\d+)?)(?:\s?([x×])|\s?(kg|k|gr|g|ml|lt|l))?(?=\s)/i;
+
+/**
+ * The short ways a unit gets written, and nothing longer: `k` is a kilo, `gr`
+ * and `lt` are grams and litres. A litre is written `L`, because a lowercase
+ * one beside a digit reads as a 1.
+ */
+const UNITS: Record<string, Unit> = {
+	g: 'g',
+	gr: 'g',
+	k: 'kg',
+	kg: 'kg',
+	ml: 'ml',
+	l: 'L',
+	lt: 'L'
+};
 
 /**
  * A price sits at the end, behind a space, with at most one currency mark on
@@ -114,12 +144,15 @@ function readNumber(raw: string): Figure | null {
 
 export function amountsIn(text: string): Reading {
 	const lead = AMOUNT.exec(text);
-	const amount = lead ? lead[1] : null;
+	const amount = lead ? lead[0] : null;
 	const rest = lead ? text.slice(lead[0].length) : text;
 
-	// The count reads by the same rules as the price, minus its x.
-	const counted = amount === null ? null : readNumber(amount.replace(/\s?[x×]$/, ''));
-	const count = counted === null ? null : counted.cents / 100;
+	// The number reads by the same rules as the price, minus its x or its unit.
+	const figure = lead === null ? null : readNumber(lead[1]);
+	const value = figure === null ? null : figure.cents / 100;
+	const unit = lead?.[3] === undefined ? null : UNITS[lead[3].toLowerCase()];
+	const count = unit === null ? value : null;
+	const measure = unit === null || value === null ? null : { value, unit };
 
 	const tail = COST.exec(rest);
 	const middle = tail ? rest.slice(0, tail.index) : rest;
@@ -135,16 +168,17 @@ export function amountsIn(text: string): Reading {
 	// A task that is only a price is a name, not a price. So is one carrying a
 	// currency mark on both sides of the number.
 	if (tail && name !== '' && !(tail[1] !== '' && tail[3] !== '')) {
-		const figure = readNumber(tail[2]);
-		if (figure) {
+		const price = readNumber(tail[2]);
+		if (price) {
 			const mark = tail[1] || tail[3];
 			return {
 				amount,
 				count,
+				measure,
 				name,
 				nameAt,
 				cost: tail[0].trim(),
-				money: { ...figure, currency: mark === '' ? null : (mark as Currency) }
+				money: { ...price, currency: mark === '' ? null : (mark as Currency) }
 			};
 		}
 	}
@@ -157,6 +191,7 @@ export function amountsIn(text: string): Reading {
 	return {
 		amount,
 		count,
+		measure,
 		name: rest.trim(),
 		nameAt: (lead ? lead[0].length : 0) + (rest.length - rest.trimStart().length),
 		cost: null,
@@ -249,11 +284,24 @@ export function format(cents: number, style: Style): string {
  * is ever padded onto a count, because it counts things and is not money.
  */
 export function countLabel(count: number, style: Style | null): string {
-	const digits = Number.isInteger(count)
-		? String(count)
-		: String(count).replace('.', style?.separator ?? '.');
+	return `${digits(count, style)}×`;
+}
 
-	return `${digits}×`;
+/**
+ * A weight or a volume, written out: `500g`, `1,5kg`, `2L`.
+ *
+ * The same rule as a count — the group's separator, nothing padded — with the
+ * unit in its one written form in place of the `×`, whichever short way it was
+ * typed: `1k`, `1 kg` and `1KG` all come out `1kg`.
+ */
+export function measureLabel(measure: Measure, style: Style | null): string {
+	return `${digits(measure.value, style)}${measure.unit}`;
+}
+
+function digits(value: number, style: Style | null): string {
+	return Number.isInteger(value)
+		? String(value)
+		: String(value).replace('.', style?.separator ?? '.');
 }
 
 export type Figures = {

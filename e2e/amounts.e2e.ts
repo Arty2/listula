@@ -65,6 +65,21 @@ test('a count multiplies the price, and the row still shows what one costs', asy
 	await expect(total(page)).toHaveText('16,06');
 });
 
+test('a weight is written one way and is not a count', async ({ page }) => {
+	await addTask(page, '1,5k Potatos 3,00');
+	await addTask(page, '300gr Feta 4,20');
+
+	// Written out in the one form each unit has, lowercase under the caps.
+	const potatos = page.getByRole('button', { name: '1,5k Potatos 3,00', exact: true });
+	await expect(potatos.locator('.amount')).toHaveText('1,5kg');
+	expect(await potatos.locator('.amount').innerText()).toBe('1,5kg');
+	const feta = page.getByRole('button', { name: '300gr Feta 4,20', exact: true });
+	await expect(feta.locator('.amount')).toHaveText('300g');
+
+	// One bag at 3,00 and one pack at 4,20, not three hundred of them.
+	await expect(total(page)).toHaveText('7,20');
+});
+
 test('half counts in full, because half a task is still on the list', async ({ page }) => {
 	await addTask(page, 'Bread 10');
 	await addTask(page, 'Milk 20');

@@ -367,6 +367,13 @@ at the front of a task is how many (`2x apples`, `3 lemons`); a number at the
 end is what it costs (`Bread 2,50`). Both `,` and `.` work as the decimal
 mark, and a group writes the whole column the way most of it was written.
 
+A number at the front with a unit on it is how much rather than how many —
+`500g`, `1,5 kg`, `2L`, `250ml`. Grams, kilos, litres and millilitres, and
+the short ways they get written: `k` for a kilo, `gr` for grams, `lt` for a
+litre, in either case. Each is written back one way — `1k` reads `1kg`,
+`300gr` reads `300g`. A weight is not a count, so the price beside it is
+taken once: `500g Butter 2,50` is one pack.
+
 The group total is what is **still to buy** — done does not count, half counts
 in full, and a row counts as its count times its price. It stays while the
 group is folded, which is when it is worth most.
