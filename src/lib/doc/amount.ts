@@ -38,8 +38,18 @@ export type Reading = {
 	 * `1,5 kg` — or nothing.
 	 */
 	amount: string | null;
-	/** The same count as a number, so the price can be taken that many times. */
+	/**
+	 * The same count as a number, so the price can be taken that many times.
+	 * Of a range it is the top: `2-3 oranges` is budgeted at three, since what
+	 * is still to buy is the most it may come to rather than the least.
+	 */
 	count: number | null;
+	/**
+	 * The bottom of a range — `2` of `2-3 oranges`, `200` of `200-300g` — or
+	 * nothing when one number was written. The top is `count` or the measure's
+	 * own value, whichever the range turned out to be.
+	 */
+	from: number | null;
 	/**
 	 * The same weight or volume, when the number carried a unit. Never a count:
 	 * `500g Butter 2,50` is one pack at 2,50, not five hundred of them.
@@ -68,8 +78,13 @@ export type Reading = {
  * `2x TOMATOS`, `3 POTATOS` and `500g BUTTER` all lead with an amount and
  * `2xTOMATOS` does not. The unit has to end before the space too, which is
  * what keeps the `l` of `2 lemons` from being litres.
+ *
+ * The number may be a range — two numbers either side of a hyphen or a dash,
+ * `2-3 oranges`, `2–3x`, `200 - 300g` — with the `x` or the unit written once,
+ * after the second.
  */
-const AMOUNT = /^(\d+(?:[.,]\d+)?)(?:\s?([x×])|\s?(kg|k|gr|g|ml|lt|l))?(?=\s)/i;
+const AMOUNT =
+	/^(\d+(?:[.,]\d+)?)(?:\s?[-–]\s?(\d+(?:[.,]\d+)?))?(?:\s?([x×])|\s?(kg|k|gr|g|ml|lt|l))?(?=\s)/i;
 
 /**
  * The short ways a unit gets written, and nothing longer: `k` is a kilo, `gr`
@@ -142,15 +157,30 @@ function readNumber(raw: string): Figure | null {
 	};
 }
 
-export function amountsIn(text: string): Reading {
+/** The leading amount, or nothing when it is not one after all. */
+function leadOf(text: string): RegExpExecArray | null {
 	const lead = AMOUNT.exec(text);
+	if (lead === null || lead[2] === undefined) return lead;
+
+	// A range runs upwards. `3-2` or `2-2` is not a range anyone meant, and
+	// reading it as one would put a number on the row that was never written.
+	const low = readNumber(lead[1]);
+	const high = readNumber(lead[2]);
+	return low !== null && high !== null && low.cents < high.cents ? lead : null;
+}
+
+export function amountsIn(text: string): Reading {
+	const lead = leadOf(text);
 	const amount = lead ? lead[0] : null;
 	const rest = lead ? text.slice(lead[0].length) : text;
 
 	// The number reads by the same rules as the price, minus its x or its unit.
-	const figure = lead === null ? null : readNumber(lead[1]);
+	// Of a range, the top: it is what the price is taken by.
+	const figure = lead === null ? null : readNumber(lead[2] ?? lead[1]);
 	const value = figure === null ? null : figure.cents / 100;
-	const unit = lead?.[3] === undefined ? null : UNITS[lead[3].toLowerCase()];
+	const low = lead?.[2] === undefined ? null : readNumber(lead[1]);
+	const from = low === null || value === null ? null : low.cents / 100;
+	const unit = lead?.[4] === undefined ? null : UNITS[lead[4].toLowerCase()];
 	const count = unit === null ? value : null;
 	const measure = unit === null || value === null ? null : { value, unit };
 
@@ -174,6 +204,7 @@ export function amountsIn(text: string): Reading {
 			return {
 				amount,
 				count,
+				from,
 				measure,
 				name,
 				nameAt,
@@ -191,6 +222,7 @@ export function amountsIn(text: string): Reading {
 	return {
 		amount,
 		count,
+		from,
 		measure,
 		name: rest.trim(),
 		nameAt: (lead ? lead[0].length : 0) + (rest.length - rest.trimStart().length),
@@ -283,8 +315,8 @@ export function format(cents: number, style: Style): string {
  * and `2` all come out `2×`. A fraction follows the group's separator; nothing
  * is ever padded onto a count, because it counts things and is not money.
  */
-export function countLabel(count: number, style: Style | null): string {
-	return `${digits(count, style)}×`;
+export function countLabel(count: number, style: Style | null, from: number | null = null): string {
+	return `${span(count, style, from)}×`;
 }
 
 /**
@@ -294,8 +326,20 @@ export function countLabel(count: number, style: Style | null): string {
  * unit in its one written form in place of the `×`, whichever short way it was
  * typed: `1k`, `1 kg` and `1KG` all come out `1kg`.
  */
-export function measureLabel(measure: Measure, style: Style | null): string {
-	return `${digits(measure.value, style)}${measure.unit}`;
+export function measureLabel(
+	measure: Measure,
+	style: Style | null,
+	from: number | null = null
+): string {
+	return `${span(measure.value, style, from)}${measure.unit}`;
+}
+
+/**
+ * One number, or two joined by an en dash — `2–3`, `200–300` — whichever
+ * hyphen or dash was typed, and the `×` or the unit written once after both.
+ */
+function span(value: number, style: Style | null, from: number | null): string {
+	return from === null ? digits(value, style) : `${digits(from, style)}–${digits(value, style)}`;
 }
 
 function digits(value: number, style: Style | null): string {
