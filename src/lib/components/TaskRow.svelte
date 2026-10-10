@@ -130,10 +130,10 @@
 	 */
 	const count = $derived(
 		reading.measure !== null
-			? measureLabel(reading.measure, style)
+			? measureLabel(reading.measure, style, reading.from)
 			: reading.count === null
 				? null
-				: countLabel(reading.count, style)
+				: countLabel(reading.count, style, reading.from)
 	);
 	const cost = $derived(
 		reading.money === null || style === null ? null : format(reading.money.cents, style)

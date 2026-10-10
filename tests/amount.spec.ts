@@ -153,11 +153,65 @@ describe('reading a count', () => {
 	});
 });
 
+describe('reading a range', () => {
+	it('reads two numbers either side of a hyphen or a dash', () => {
+		expect(amountsIn('2-3 Oranges')).toMatchObject({
+			amount: '2-3',
+			count: 3,
+			from: 2,
+			measure: null,
+			name: 'Oranges',
+			nameAt: 4
+		});
+		expect(amountsIn('2–3x Oranges')).toMatchObject({ count: 3, from: 2 });
+		expect(amountsIn('2 - 3 Oranges')).toMatchObject({ count: 3, from: 2, name: 'Oranges' });
+		expect(amountsIn('1,5-2 Lemons')).toMatchObject({ count: 2, from: 1.5 });
+	});
+
+	it('reads a range of a measure', () => {
+		expect(amountsIn('200-300g Mince')).toMatchObject({
+			count: null,
+			from: 200,
+			measure: { value: 300, unit: 'g' }
+		});
+		expect(amountsIn('1–1,5 kg Potatos')).toMatchObject({
+			from: 1,
+			measure: { value: 1.5, unit: 'kg' }
+		});
+	});
+
+	it('only runs upwards', () => {
+		expect(amountsIn('3-2 Oranges').amount).toBeNull();
+		expect(amountsIn('2-2 Oranges').amount).toBeNull();
+	});
+
+	it('needs a number on both sides and a space after', () => {
+		expect(amountsIn('2- Oranges').amount).toBeNull();
+		expect(amountsIn('2-3Oranges').amount).toBeNull();
+		expect(amountsIn('2-way adapter').amount).toBeNull();
+	});
+
+	it('is budgeted at the top', () => {
+		expect(line(amountsIn('2-3 Oranges 1,00'))?.cents).toBe(300);
+		// A measure is still one of the thing, however much of it.
+		expect(line(amountsIn('200-300g Mince 4,50'))?.cents).toBe(450);
+	});
+
+	it('is written out with an en dash, the mark once after both', () => {
+		const comma: Style = { separator: ',', decimals: 2, currency: null };
+		const read = amountsIn('2-3x Oranges');
+		expect(countLabel(read.count!, null, read.from)).toBe('2–3×');
+		const mince = amountsIn('1.5-2KG Mince');
+		expect(measureLabel(mince.measure!, comma, mince.from)).toBe('1,5–2kg');
+	});
+});
+
 describe('a task with both', () => {
 	it('splits into count, name and price', () => {
 		expect(amountsIn('2x Tomatos 20.00')).toStrictEqual({
 			amount: '2x',
 			count: 2,
+			from: null,
 			measure: null,
 			name: 'Tomatos',
 			nameAt: 3,
@@ -170,6 +224,7 @@ describe('a task with both', () => {
 		expect(amountsIn('Bread')).toStrictEqual({
 			amount: null,
 			count: null,
+			from: null,
 			measure: null,
 			name: 'Bread',
 			nameAt: 0,

@@ -374,6 +374,11 @@ litre, in either case. Each is written back one way — `1k` reads `1kg`,
 `300gr` reads `300g`. A weight is not a count, so the price beside it is
 taken once: `500g Butter 2,50` is one pack.
 
+Either can be a range: two numbers with a hyphen or a dash between them,
+`2-3 oranges`, `200-300g mince`. It reads `2–3×` and `200–300g`, and only
+upwards — `3-2` is not read at all. A range of a count is totalled at its top,
+so `2-3 oranges 1,00` adds 3,00.
+
 The group total is what is **still to buy** — done does not count, half counts
 in full, and a row counts as its count times its price. It stays while the
 group is folded, which is when it is worth most.
