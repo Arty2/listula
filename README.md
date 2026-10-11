@@ -176,19 +176,24 @@ stored text.
 ## Deployment
 
 - Keep the Vercel Blob store **private**. Only the server needs to read it.
-- Add `CRON_SECRET` by hand (`openssl rand -hex 32`). Without it, the daily
-  cleanup of expired lists never runs.
-- To check that a deployment can write, run:
+- Add `CRON_SECRET` by hand (`openssl rand -hex 32`) as a private
+  environment variable. Without it, the daily cleanup of expired lists never
+  runs. Never commit it or give it a `PUBLIC_` name.
+- To check that a deployment can write, set `HOST` to the deployment's
+  domain and run:
 
   ```
+  HOST=example.vercel.app
   ROOM=$(openssl rand -hex 16)
-  curl -i https://<deployment>/api/room/$ROOM
-  curl -i -X PUT https://<deployment>/api/room/$ROOM \
+  curl -i "https://$HOST/api/room/$ROOM"
+  curl -i -X PUT "https://$HOST/api/room/$ROOM" \
     -H 'Content-Type: application/json' -d '{"baseV":0,"blob":"AA=="}'
   ```
 
   A healthy deployment answers `404`, then `200 {"v":1}`. A `500` on the
-  second call means the store is not connected.
+  second call means the store is not connected. The check writes one tiny
+  empty list under a random address, which no code can open and which is
+  deleted after six months.
 
 ## Typeface
 
