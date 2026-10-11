@@ -173,6 +173,23 @@ stored text.
 - **The first screen is in English.** The page is built in advance, so a
   phone set to Greek briefly shows English before switching.
 
+## Deployment
+
+- Keep the Vercel Blob store **private**. Only the server needs to read it.
+- Add `CRON_SECRET` by hand (`openssl rand -hex 32`). Without it, the daily
+  cleanup of expired lists never runs.
+- To check that a deployment can write, run:
+
+  ```
+  ROOM=$(openssl rand -hex 16)
+  curl -i https://<deployment>/api/room/$ROOM
+  curl -i -X PUT https://<deployment>/api/room/$ROOM \
+    -H 'Content-Type: application/json' -d '{"baseV":0,"blob":"AA=="}'
+  ```
+
+  A healthy deployment answers `404`, then `200 {"v":1}`. A `500` on the
+  second call means the store is not connected.
+
 ## Typeface
 
 The app uses one typeface, **Graphe Alpha**, drawn by the project's author
