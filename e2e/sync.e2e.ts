@@ -20,7 +20,7 @@ import {
  * below, and the two together cover the path end to end.
  *
  * What none of it proves is that @vercel/blob behaves like the fake. Nothing
- * short of a deploy can; see the README.
+ * short of a deploy can.
  */
 
 class FakeBlobs implements Blobs {

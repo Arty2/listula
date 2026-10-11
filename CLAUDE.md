@@ -28,14 +28,14 @@ is not a thing to infer from a batch of changes.
 
 ## The gesture reference
 
-`TECHNICAL.md`'s **Gestures** section is the only place the app says what it
+`README.md`'s **Gestures** section is the only place the app says what it
 answers to. Nothing on the sheet is labelled, there is no help screen, no
 tooltip and no empty-state copy — that is settled (§12.14) and is not going to
 change — so a gesture that is not written down there is a gesture nobody
-outside this repository can find. `README.md` keeps only a plain paragraph of
-what the app is and how a list is shared, and links to that section; the
-gestures themselves are not repeated there, or there are two records to keep
-in step and one of them is always wrong.
+outside this repository can find. It is the one record: gestures are not
+repeated anywhere else, or there are two records to keep in step and one of
+them is always wrong. The README is written in brief, plain, encyclopaedic
+prose, and the section follows suit — tables first, a sentence or two after.
 
 **A change to any interaction is not finished until that section says so, in
 the same commit.** Not a follow-up, not a later tidy: a reference describing an
@@ -62,8 +62,7 @@ What counts as an interaction, and so has to be reflected there:
   least discoverable thing in the app.
 
 What does **not** go there: why it is that way, which belongs in
-`DECISIONS.md`, and how it is built, which belongs here or in the rest of
-`TECHNICAL.md`. The section says what a finger does and what happens; one
+`DECISIONS.md`, and how it is built, which belongs here. The section says what a finger does and what happens; one
 clause of reason where it stops the reader wondering, and no more.
 
 ## Non-negotiable
@@ -170,7 +169,7 @@ The build plan is the specification; these were settled after it was written and
 - iOS ignores the manifest for its launch screen and wants `apple-touch-startup-image` per device size. There are none, so an installed iOS app still opens on its own white screen. Known, and left.
 - The page is prerendered (`prerender = true` in `src/routes/+layout.ts`). Only `/api/*` is dynamic.
 - `src/lib/server/store.ts` is the only file that imports `@vercel/blob`.
-- One typeface, everywhere — §6's two faces are down to one. There is exactly one `@font-face` in src/app.css and one variable, `--hand`, that names it; titles and body separate by size and caps. The face is Graphe, the owner's own and not open-licensed; a fork that publishes must substitute its own, licensed for webfont embedding and redistribution. The single exception is `.num`, a recognised amount or cost, set in `--mono` — a system stack, so it is still one `@font-face`, one file and no request. Nothing else may leave the hand, and `e2e/design.e2e.ts` names the carve-out rather than inferring it.
+- One typeface, everywhere — §6's two faces are down to one. There is exactly one `@font-face` in src/app.css and one variable, `--hand`, that names it; titles and body separate by size and caps. The face is Graphe Alpha, the owner's own, released under the SIL Open Font License, so it can be embedded and redistributed, forks included. The single exception is `.num`, a recognised amount or cost, set in `--mono` — a system stack, so it is still one `@font-face`, one file and no request. Nothing else may leave the hand, and `e2e/design.e2e.ts` names the carve-out rather than inferring it.
 - Scale corrections for the face live in `size-adjust`/`ascent-override`/`descent-override` on that one `@font-face`, never spread across `--size-*`. Graphe is drawn on a much larger body than the rem values assume. Swapping the face means retuning those three and the preload in src/app.html — a stale preload fails the prerender rather than shipping a dead link.
 - Graphe has no `[`, `]` or `\`; they fall back deliberately. Never rewrite the markdown checkbox tokens to work around it — the export has to stay readable by other apps.
 
