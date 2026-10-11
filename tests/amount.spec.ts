@@ -393,6 +393,12 @@ describe('a group', () => {
 		expect(figures([task('4x Bread 5,00', 'done'), task('2x Milk 1,50')]).total).toBe('3,00');
 	});
 
+	it('keeps the part of a whole price a fractional count comes to', () => {
+		expect(figures([task('1.5x Apples 3')]).total).toBe('4.50');
+		expect(figures([task('1,5x Apples 3'), task('Pears 2')]).total).toBe('6.50');
+		expect(figures([task('2x Apples 3')]).total).toBe('6');
+	});
+
 	it('shows nothing when there is nothing to total', () => {
 		expect(figures([]).total).toBeNull();
 		expect(figures([task('Bread'), task('Milk')]).total).toBeNull();

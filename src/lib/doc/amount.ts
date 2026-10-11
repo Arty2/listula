@@ -300,8 +300,10 @@ export function format(cents: number, style: Style): string {
 	const whole = Math.trunc(cents / 100);
 	const places = cents % 100;
 
+	// A group that writes whole prices can still come to a part of one — one
+	// and a half at 3 is 4,50 — and leaving the places off said 4.
 	const digits =
-		style.decimals === 0
+		style.decimals === 0 && places === 0
 			? String(whole)
 			: `${whole}${style.separator}${String(places).padStart(2, '0')}`;
 

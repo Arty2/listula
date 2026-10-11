@@ -1,5 +1,6 @@
 import { derive, newCode, normaliseCode, type Room } from '$lib/crypto/derive';
 import { canonical } from '$lib/doc/canonical';
+import { merge } from '$lib/doc/merge';
 import type { Doc } from '$lib/doc/types';
 import { parseDoc } from '$lib/doc/validate';
 import { t } from '$lib/i18n';
@@ -59,7 +60,7 @@ export class SyncState {
 	 * Reactive: `unsent` compares against this, so a sync that changes only the
 	 * snapshot — and not the document — still has to update the mark.
 	 */
-	#lastSynced = $state<Doc | null>(null);
+	#lastSynced = $state.raw<Doc | null>(null);
 
 	/**
 	 * The count the SYNC panel shows. It is the honest version of the status
@@ -266,16 +267,20 @@ export class SyncState {
 		// join.
 		this.#room ??= await derive(this.code!);
 
+		// What went out. The sheet stays editable for the whole round trip, so
+		// whatever is on it by the time the answer comes back may be more.
+		const sent = sheet.doc;
+
 		const outcome = await syncNow({
 			roomId: this.#room.roomId,
 			key: this.#room.key,
-			local: sheet.doc,
+			local: sent,
 			etag: this.#etag,
 			lastSynced: this.#lastSynced,
 			prefetched
 		});
 
-		this.#apply(outcome);
+		this.#apply(outcome, sent);
 		return outcome;
 	}
 
@@ -312,9 +317,20 @@ export class SyncState {
 		this.refresh();
 	}
 
-	#apply(outcome: SyncOutcome): void {
+	#apply(outcome: SyncOutcome, sent?: Doc): void {
 		if (outcome.status === 'synced') {
-			sheet.replace(outcome.doc);
+			/*
+			 * A tick made while the request was out is not in what came back, and
+			 * replacing the sheet with the answer took it away. Only the records
+			 * touched since go on top — merging the whole sheet back in would put
+			 * back the tombstones collection just dropped.
+			 */
+			const local = sheet.doc;
+			sheet.replace(
+				sent === undefined || local === sent
+					? outcome.doc
+					: merge(outcome.doc, changedSince(sent, local))
+			);
 
 			// Reaching it is the only thing that proves it can be reached.
 			this.#unreachable = false;
@@ -323,7 +339,7 @@ export class SyncState {
 			write(this.#keys.version, this.#etag);
 			write(this.#keys.synced, canonical(outcome.doc));
 
-			this.status = 'synced';
+			this.refresh();
 			return;
 		}
 
@@ -354,6 +370,18 @@ function messageFor(outcome: SyncOutcome): string | null {
 		default:
 			return null;
 	}
+}
+
+/**
+ * The records `now` holds that `then` did not, by identity: every op hands back
+ * a new document sharing the records it left alone, so a record that is not
+ * the same object is one that was written in between.
+ */
+export function changedSince(then: Doc, now: Doc): Doc {
+	const pick = <T>(a: Record<string, T>, b: Record<string, T>) =>
+		Object.fromEntries(Object.entries(b).filter(([id, record]) => a[id] !== record));
+
+	return { v: 1, groups: pick(then.groups, now.groups), tasks: pick(then.tasks, now.tasks) };
 }
 
 /** How many records differ from the last version that reached the server. */

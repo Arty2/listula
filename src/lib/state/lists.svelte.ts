@@ -147,14 +147,17 @@ export class Lists {
 	 * Only the document. The list's `version` and `synced` keys are deliberately
 	 * left where they are, so what has just landed there counts as unsent on
 	 * that list, exactly as it would if it had been typed on it.
+	 *
+	 * False when storage refused it, which the caller has to hear: carrying a
+	 * group takes it off this list only once it is down on the other.
 	 */
-	writeDoc(id: string, doc: Doc): void {
+	writeDoc(id: string, doc: Doc): boolean {
 		if (id === this.current) {
 			sheet.replace(doc);
-			return;
+			return true;
 		}
 
-		write(this.#keysOf(id).doc, JSON.stringify(doc));
+		return write(this.#keysOf(id).doc, JSON.stringify(doc));
 	}
 
 	/** Whichever key-set a remembered list lives under, legacy or namespaced. */
@@ -175,6 +178,13 @@ export class Lists {
 
 		const target = this.entries.find((entry) => entry.id === id);
 		if (!target) return;
+
+		/*
+		 * An undo is about the sheet it was offered on, and acts through `sheet`,
+		 * which is about to be a different list. Left up, it would restore a
+		 * group onto the list it had just been carried to, or nothing at all.
+		 */
+		ui.dismiss(true);
 
 		/*
 		 * Read before anything is re-pointed: `sheet.written` is about the list
