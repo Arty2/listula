@@ -10,8 +10,7 @@
 	import { hasLink, pieces } from '$lib/doc/links';
 	import { spill, splitAt } from '$lib/doc/spill';
 	import type { State, Task } from '$lib/doc/types';
-	import { handScribble, SCRIBBLE } from '$lib/draw/hand';
-	import { seedFrom } from '$lib/draw/rng';
+	import { scribbleMark, SCRIBBLE } from '$lib/draw/hand';
 	import { drag, dragRow, type DropTarget } from '$lib/dnd/drag.svelte';
 	import { DOUBLE_TAP_MS } from '$lib/dnd/longpress';
 	import { swipeRow } from '$lib/dnd/swipe';
@@ -152,10 +151,7 @@
 	 * the checkbox at the other end of the row and no wider than the margin it
 	 * stands in, which is what makes it an S struck through.
 	 */
-	const scribble = handScribble(SCRIBBLE.w, SCRIBBLE.h, {
-		seed: seedFrom(SCRIBBLE.seed),
-		wobble: 0.7
-	});
+	const scribble = scribbleMark();
 
 	/*
 	 * Negative infinity, not zero: `performance.now()` counts from the page

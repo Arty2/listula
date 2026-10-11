@@ -3,8 +3,7 @@
 	import Perforation from './Perforation.svelte';
 	import { langOf } from '$lib/doc/lang';
 	import { LIMITS } from '$lib/doc/limits';
-	import { handScribble, SCRIBBLE } from '$lib/draw/hand';
-	import { seedFrom } from '$lib/draw/rng';
+	import { scribbleMark, SCRIBBLE } from '$lib/draw/hand';
 	import { drag, dragGroup, type GroupDrop } from '$lib/dnd/drag.svelte';
 	import { longPress } from '$lib/dnd/longpress';
 	import { taken, tapped } from '$lib/feel';
@@ -89,10 +88,7 @@
 	 * drawing from one seed, not a second scribble at the same size. See
 	 * SCRIBBLE in draw/hand.
 	 */
-	const scribble = handScribble(SCRIBBLE.w, SCRIBBLE.h, {
-		seed: seedFrom(SCRIBBLE.seed),
-		wobble: 0.7
-	});
+	const scribble = scribbleMark();
 
 	/**
 	 * What the mark in the gutter would do, or nothing at all.

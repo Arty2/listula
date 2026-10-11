@@ -3,6 +3,7 @@ import { applyImport } from '../src/lib/markdown/apply';
 import { fromMarkdown, looksStructured } from '../src/lib/markdown/from';
 import { toMarkdown } from '../src/lib/markdown/to';
 import { addGroup, addTask, liveGroups, liveTasks, setTaskState } from '../src/lib/doc/ops';
+import { merge } from '../src/lib/doc/merge';
 import { createClock, type Ctx } from '../src/lib/doc/stamp';
 import { emptyDoc, type Doc } from '../src/lib/doc/types';
 
@@ -209,6 +210,17 @@ describe('applying an import', () => {
 
 		expect(liveTasks(result.doc).map((t) => t.text)).toStrictEqual(['One thing']);
 		expect(liveTasks(result.doc)[0].state).toBe('done');
+	});
+
+	it('replaces by deleting, so a sync cannot bring the old list back', () => {
+		const { doc, ctx } = sample();
+		const parsed = fromMarkdown('## Only this\n\n- [ ] One thing\n')!;
+
+		const result = applyImport(doc, ctx, parsed, 'replace');
+
+		// What the server still holds from before, merged back in.
+		const synced = merge(result.doc, doc);
+		expect(liveTasks(synced).map((t) => t.text)).toStrictEqual(['One thing']);
 	});
 
 	it('refuses cleanly rather than committing past the limit', () => {

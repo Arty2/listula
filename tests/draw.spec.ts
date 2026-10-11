@@ -14,6 +14,8 @@ import {
 	handRect,
 	handRefresh,
 	handScribble,
+	scribbleMark,
+	SCRIBBLE,
 	handSlashedCircle,
 	handSun,
 	handSwoop,
@@ -1027,6 +1029,15 @@ describe('handScribble', () => {
 
 	it('is not the ✕ it replaced, which the modal still closes with', () => {
 		expect(handScribble(W, H, { seed: 4 })).not.toBe(handCross(W, { seed: 4 }));
+	});
+
+	it('is one drawing, the same one every row and header shows', () => {
+		const drawn = handScribble(SCRIBBLE.w, SCRIBBLE.h, {
+			seed: seedFrom(SCRIBBLE.seed),
+			wobble: 0.7
+		});
+		expect(scribbleMark()).toBe(drawn);
+		expect(scribbleMark()).toBe(scribbleMark());
 	});
 });
 
