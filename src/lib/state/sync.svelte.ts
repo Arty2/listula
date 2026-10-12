@@ -172,6 +172,7 @@ export class SyncState {
 			const pulled = await pull({
 				roomId: room.roomId,
 				key: room.key,
+				writeToken: room.writeToken,
 				local: sheet.doc,
 				etag: null,
 				lastSynced: null
@@ -274,6 +275,7 @@ export class SyncState {
 		const outcome = await syncNow({
 			roomId: this.#room.roomId,
 			key: this.#room.key,
+			writeToken: this.#room.writeToken,
 			local: sent,
 			etag: this.#etag,
 			lastSynced: this.#lastSynced,

@@ -34,7 +34,7 @@ export type SyncOutcome =
 	| { status: 'damaged' }
 	/** Over the 128 KB cap. Nothing was written. */
 	| { status: 'too-large' }
-	/** Kept losing a race with another writer. */
+	/** Kept losing a race with another writer, or asked the server too often. */
 	| { status: 'busy' }
 	/** Something none of the above expected to happen — caught, not swallowed. */
 	| { status: 'error'; message: string };
@@ -42,6 +42,8 @@ export type SyncOutcome =
 export type SyncInput = {
 	roomId: string;
 	key: CryptoKey;
+	/** Sent with every write, so the server can tell the list's keepers apart. */
+	writeToken: string;
 	local: Doc;
 	/** Version token from the last successful read, for a conditional fetch. */
 	etag: string | null;
@@ -94,9 +96,10 @@ export async function syncNow(input: SyncInput): Promise<SyncOutcome> {
 
 		trace(`sync: pushing #${attempt + 1} (${countOf(merged)})`);
 		const blob = await seal(input.key, merged);
-		const result = await putRoom(input.roomId, { baseV: remoteV, blob });
+		const result = await putRoom(input.roomId, { baseV: remoteV, blob }, input.writeToken);
 
 		if (result.status === 'offline') return { status: 'offline' };
+		if (result.status === 'slow') return { status: 'busy' };
 		if (result.status === 'refused') return { status: 'refused', code: result.code };
 		if (result.status === 'too-large') return { status: 'too-large' };
 
@@ -163,6 +166,7 @@ export async function pull(input: SyncInput): Promise<Pulled> {
 	const result = await getRoom(input.roomId, input.etag);
 
 	if (result.status === 'offline') return { status: 'stop', outcome: { status: 'offline' } };
+	if (result.status === 'slow') return { status: 'stop', outcome: { status: 'busy' } };
 	if (result.status === 'refused') {
 		return { status: 'stop', outcome: { status: 'refused', code: result.code } };
 	}

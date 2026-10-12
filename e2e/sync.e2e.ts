@@ -4,6 +4,7 @@ import {
 	RoomStore,
 	isRoomId,
 	parsePutBody,
+	writeTokenFrom,
 	type BlobEntry,
 	type Blobs
 } from '../src/lib/server/store';
@@ -79,8 +80,12 @@ async function api(route: Route) {
 	const body = parsePutBody(JSON.parse(raw));
 	if (!body) return route.fulfill({ status: 400, headers });
 
-	const result = await store.write(roomId, body);
+	const token = writeTokenFrom(request.headers()['authorization'] ?? null);
+	if (!token) return route.fulfill({ status: 401, headers });
 
+	const result = await store.write(roomId, body, token);
+
+	if (result.status === 'forbidden') return route.fulfill({ status: 403, headers });
 	if (result.status === 'too-large') return route.fulfill({ status: 413, headers });
 	if (result.status === 'conflict') {
 		return route.fulfill({

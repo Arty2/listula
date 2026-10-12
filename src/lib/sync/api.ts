@@ -24,6 +24,7 @@ export type GetResult =
 	| { status: 'ok'; room: RoomSnapshot }
 	| { status: 'unchanged' }
 	| { status: 'missing' }
+	| { status: 'slow' }
 	| { status: 'offline' }
 	| { status: 'refused'; code: number };
 
@@ -31,6 +32,8 @@ export type PutResult =
 	| { status: 'ok'; v: number }
 	| { status: 'conflict'; room: RoomSnapshot }
 	| { status: 'too-large' }
+	/** Asked too often; the server will take it again in a minute. */
+	| { status: 'slow' }
 	| { status: 'offline' }
 	| { status: 'refused'; code: number };
 
@@ -69,6 +72,10 @@ export async function getRoom(roomId: string, etag: string | null): Promise<GetR
 		trace('GET 404');
 		return { status: 'missing' };
 	}
+	if (response.status === 429) {
+		trace('GET 429 too many');
+		return { status: 'slow' };
+	}
 	if (!response.ok) {
 		trace(`GET ${response.status}`);
 		return { status: 'refused', code: response.status };
@@ -81,7 +88,9 @@ export async function getRoom(roomId: string, etag: string | null): Promise<GetR
 
 export async function putRoom(
 	roomId: string,
-	body: { baseV: number; blob: string }
+	body: { baseV: number; blob: string },
+	/** Derived from the code beside the room id; only its hash is stored. */
+	writeToken: string
 ): Promise<PutResult> {
 	let response: Response;
 	// What was actually sent, on every line below — success or not.
@@ -90,7 +99,7 @@ export async function putRoom(
 	try {
 		response = await fetch(`/api/room/${roomId}`, {
 			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` },
 			body: JSON.stringify(body),
 			cache: 'no-store'
 		});
@@ -102,6 +111,11 @@ export async function putRoom(
 	if (response.status === 413) {
 		trace(`${sent}: 413 too large`);
 		return { status: 'too-large' };
+	}
+
+	if (response.status === 429) {
+		trace(`${sent}: 429 too many`);
+		return { status: 'slow' };
 	}
 
 	if (response.status === 409) {

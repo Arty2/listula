@@ -51,6 +51,7 @@ class FakeBlobs implements Blobs {
 }
 
 const ROOM = 'a'.repeat(32);
+const TOKEN = 'b'.repeat(32);
 let clock = 1_000_000;
 let blobs: FakeBlobs;
 let store: RoomStore;
@@ -124,7 +125,7 @@ describe('reading and writing', () => {
 	});
 
 	it('writes the first version at baseV 0', async () => {
-		const result = await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		const result = await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 		expect(result).toStrictEqual({ status: 'ok', v: 1 });
 
 		const read = await store.read(ROOM, null);
@@ -133,7 +134,7 @@ describe('reading and writing', () => {
 	});
 
 	it('returns 304-shaped unchanged when the version token matches', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 
 		const first = await store.read(ROOM, null);
 		expect(first.status).toBe('ok');
@@ -146,12 +147,12 @@ describe('reading and writing', () => {
 	});
 
 	it('sends the body again once the list has changed', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 		const first = await store.read(ROOM, null);
 		if (first.status !== 'ok') throw new Error('expected ok');
 
 		clock += 5000;
-		await store.write(ROOM, { baseV: 1, blob: 'BAUG' });
+		await store.write(ROOM, { baseV: 1, blob: 'BAUG' }, TOKEN);
 
 		const again = await store.read(ROOM, first.etag);
 		expect(again.status).toBe('ok');
@@ -159,9 +160,9 @@ describe('reading and writing', () => {
 	});
 
 	it('conflicts on a stale baseV and hands back the current state', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 
-		const result = await store.write(ROOM, { baseV: 0, blob: 'BAUG' });
+		const result = await store.write(ROOM, { baseV: 0, blob: 'BAUG' }, TOKEN);
 
 		expect(result.status).toBe('conflict');
 		if (result.status === 'conflict') {
@@ -170,13 +171,13 @@ describe('reading and writing', () => {
 	});
 
 	it('conflicts when a first write arrives with a version already taken', async () => {
-		const result = await store.write(ROOM, { baseV: 3, blob: 'AQID' });
+		const result = await store.write(ROOM, { baseV: 3, blob: 'AQID' }, TOKEN);
 		expect(result.status).toBe('conflict');
 	});
 
 	it('refuses a blob over the cap', async () => {
 		const huge = 'A'.repeat(MAX_BLOB_BYTES + 4);
-		expect(await store.write(ROOM, { baseV: 0, blob: huge })).toStrictEqual({
+		expect(await store.write(ROOM, { baseV: 0, blob: huge }, TOKEN)).toStrictEqual({
 			status: 'too-large'
 		});
 	});
@@ -188,7 +189,7 @@ describe('reading and writing', () => {
 	});
 
 	it('collapses a burst of reads into one blob call', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 		blobs.calls.get = 0;
 
 		await store.read(ROOM, null);
@@ -211,12 +212,12 @@ describe('reading and writing', () => {
 		 * silently lost edit. The version token has to come from the document's
 		 * own v.
 		 */
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 		const first = await store.read(ROOM, null);
 		if (first.status !== 'ok') throw new Error('expected ok');
 
 		// Immediately, inside the micro-cache window, with the clock unmoved.
-		await store.write(ROOM, { baseV: 1, blob: 'BAUG' });
+		await store.write(ROOM, { baseV: 1, blob: 'BAUG' }, TOKEN);
 		const again = await store.read(ROOM, first.etag);
 
 		expect(again.status).toBe('ok');
@@ -231,8 +232,8 @@ describe('the sweep', () => {
 	const OTHER = 'b'.repeat(32);
 
 	it('deletes what nobody has written to in six months, and nothing else', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
-		await store.write(OTHER, { baseV: 0, blob: 'BAUG' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
+		await store.write(OTHER, { baseV: 0, blob: 'BAUG' }, TOKEN);
 
 		blobs.backdate(roomPath(ROOM), clock - EXPIRY_MS - 1000);
 
@@ -244,7 +245,7 @@ describe('the sweep', () => {
 	});
 
 	it('keeps a list edited just inside the window', async () => {
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 		blobs.backdate(roomPath(ROOM), clock - EXPIRY_MS + 1000);
 
 		expect(await store.sweep(clock)).toBe(0);
@@ -269,12 +270,12 @@ describe('environment prefixes', () => {
 	it("cannot read or overwrite another environment's list", async () => {
 		const preview = new RoomStore(blobs, { cacheMs: 0, now: () => clock, prefix: 'preview/' });
 
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
 
 		// The same room id in preview is a different list, starting from nothing.
 		expect(await preview.read(ROOM, null)).toStrictEqual({ status: 'missing' });
 
-		await preview.write(ROOM, { baseV: 0, blob: 'BAUG' });
+		await preview.write(ROOM, { baseV: 0, blob: 'BAUG' }, TOKEN);
 
 		const live = await store.read(ROOM, null);
 		expect(live.status).toBe('ok');
@@ -288,8 +289,8 @@ describe('environment prefixes', () => {
 		 */
 		const preview = new RoomStore(blobs, { cacheMs: 0, now: () => clock, prefix: 'preview/' });
 
-		await store.write(ROOM, { baseV: 0, blob: 'AQID' });
-		await preview.write(OTHER, { baseV: 0, blob: 'BAUG' });
+		await store.write(ROOM, { baseV: 0, blob: 'AQID' }, TOKEN);
+		await preview.write(OTHER, { baseV: 0, blob: 'BAUG' }, TOKEN);
 
 		blobs.backdate(roomPath(ROOM), clock - EXPIRY_MS - 1000);
 		blobs.backdate(roomPath(OTHER, 'preview/'), clock - EXPIRY_MS - 1000);

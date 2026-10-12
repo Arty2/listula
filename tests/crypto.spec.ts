@@ -89,6 +89,18 @@ describe('derivation', () => {
 		expect(await open(two.key, sealed)).toBeNull();
 	});
 
+	it('still reaches every list that already exists', async () => {
+		// Pinned from before the write token was carved out of the same output:
+		// a list's address must never move, or every existing list is orphaned.
+		expect((await derive('a1b2c3d4e5f6')).roomId).toBe('d866c1036d5e8f1cb6c478692e4b0c4b');
+	});
+
+	it('derives a write token apart from the address', () => {
+		expect(one.writeToken).toMatch(/^[0-9a-f]{32}$/);
+		expect(one.writeToken).not.toBe(one.roomId);
+		expect(one.writeToken).not.toBe(two.writeToken);
+	});
+
 	it('has the salt frozen', () => {
 		// Changing this silently orphans every list that already exists — the
 		// consumma → listula rename included, which is why it still reads so.

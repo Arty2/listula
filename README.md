@@ -168,8 +168,7 @@ stored text.
 - **Unused lists expire.** A list not edited for six months is deleted from
   the server. Reading it does not count.
 - **Encryption does not protect against the host.** It protects stored data,
-  not against whoever serves the app's code. The server also does not stop
-  someone who knows a list's address from overwriting it.
+  not against whoever serves the app's code.
 - **The first screen is in English.** The page is built in advance, so a
   phone set to Greek briefly shows English before switching.
 
@@ -187,6 +186,7 @@ stored text.
   ROOM=$(openssl rand -hex 16)
   curl -i "https://$HOST/api/room/$ROOM"
   curl -i -X PUT "https://$HOST/api/room/$ROOM" \
+    -H "Authorization: Bearer $(openssl rand -hex 16)" \
     -H 'Content-Type: application/json' -d '{"baseV":0,"blob":"AA=="}'
   ```
 
@@ -194,6 +194,10 @@ stored text.
   second call means the store is not connected. The check writes one tiny
   empty list under a random address, which no code can open and which is
   deleted after six months.
+
+- The server limits each address to 120 reads and 30 writes a minute. The
+  count is kept per server instance, so for a hard limit also add a rate-limit
+  rule for `/api/room/` in the Vercel firewall.
 
 ## Typeface
 

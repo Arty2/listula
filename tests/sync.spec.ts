@@ -12,6 +12,7 @@ import {
 	isRoomId,
 	parsePutBody,
 	roomPath,
+	writeTokenFrom,
 	type BlobEntry,
 	type Blobs
 } from '../src/lib/server/store';
@@ -78,7 +79,11 @@ function serve() {
 		const body = parsePutBody(JSON.parse(String(init.body)));
 		if (!body) return new Response(null, { status: 400 });
 
-		const result = await store.write(roomId, body);
+		const token = writeTokenFrom(new Headers(init.headers).get('authorization'));
+		if (!token) return new Response(null, { status: 401 });
+
+		const result = await store.write(roomId, body, token);
+		if (result.status === 'forbidden') return new Response(null, { status: 403 });
 
 		if (result.status === 'ok' && afterWrite) {
 			const hook = afterWrite;
@@ -120,6 +125,7 @@ function fresh(clientId: string): Device {
 async function sync(d: Device, key: CryptoKey = room.key) {
 	const outcome = await syncNow({
 		roomId: room.roomId,
+		writeToken: room.writeToken,
 		key,
 		local: d.doc,
 		etag: d.etag,
@@ -309,6 +315,26 @@ describe('syncing', () => {
 });
 
 describe('when things go wrong', () => {
+	it('cannot overwrite a list with its address alone', async () => {
+		const one = fresh('one');
+		one.doc = addGroup(one.doc, one.ctx, { id: 'g1', title: 'Market' });
+		await sync(one);
+
+		// The right address and key, the wrong token: what someone who learned
+		// the room id, but not the code, would be holding.
+		const outcome = await syncNow({
+			roomId: room.roomId,
+			key: room.key,
+			writeToken: stranger.writeToken,
+			local: addGroup(emptyDoc(), device('two'), { id: 'g2', title: 'Junk' }),
+			etag: null,
+			lastSynced: null,
+			wait: async () => {}
+		});
+
+		expect(outcome).toStrictEqual({ status: 'refused', code: 403 });
+	});
+
 	it('reports the wrong code rather than a stack trace', async () => {
 		const one = fresh('one');
 		one.doc = addGroup(one.doc, one.ctx, { id: 'g1', title: 'Market' });
@@ -399,6 +425,7 @@ describe('when things go wrong', () => {
 
 		const pulled = await pull({
 			roomId: room.roomId,
+			writeToken: room.writeToken,
 			key: room.key,
 			local: emptyDoc(),
 			etag: null,
@@ -410,6 +437,7 @@ describe('when things go wrong', () => {
 
 		const outcome = await syncNow({
 			roomId: room.roomId,
+			writeToken: room.writeToken,
 			key: room.key,
 			local: emptyDoc(),
 			etag: null,

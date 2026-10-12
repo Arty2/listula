@@ -1,12 +1,17 @@
 /**
  * The share code *is* the encryption key.
  *
- *   material = PBKDF2-SHA256(code, "consumma:v1", 300_000, 64 bytes)
- *   roomId   = hex(material[0..16])    — 32 hex chars, sent to the server
- *   aesKey   =     material[32..64]    — AES-GCM 256, never leaves the device
+ *   material   = PBKDF2-SHA256(code, "consumma:v1", 300_000, 64 bytes)
+ *   roomId     = hex(material[0..16])   — 32 hex chars, the list's address
+ *   writeToken = hex(material[16..32])  — 32 hex chars, proof it may be written
+ *   aesKey     =     material[32..64]   — AES-GCM 256, never leaves the device
  *
- * The salt is fixed because the code is the only shared secret. The two halves
- * are independent, so a server that knows roomId learns nothing about aesKey.
+ * The salt is fixed because the code is the only shared secret. The three
+ * slices are independent, so a server that knows roomId learns nothing about
+ * either of the others. The write token is sent with every write and the
+ * server keeps only its hash: knowing a list's address is enough to read its
+ * ciphertext but not to overwrite it. It was carved from bytes the derivation
+ * already produced and nothing used, so no existing roomId or key moved.
  *
  * Nothing here ever runs on the server: scripts/gates.sh fails the build if
  * anything under src/routes/api imports from this directory.
@@ -46,6 +51,8 @@ export type Room = {
 	roomId: string;
 	/** Non-extractable: nothing in the app can read the raw bytes back out. */
 	key: CryptoKey;
+	/** Sent with every write. The server stores its hash and nothing else. */
+	writeToken: string;
 };
 
 export function newCode(): string {
@@ -124,6 +131,7 @@ export async function derive(code: string): Promise<Room> {
 
 	const bytes = new Uint8Array(bits);
 	const roomId = hex(bytes.subarray(0, 16));
+	const writeToken = hex(bytes.subarray(16, 32));
 
 	const key = await crypto.subtle.importKey('raw', bytes.subarray(32, 64), 'AES-GCM', false, [
 		'encrypt',
@@ -134,7 +142,7 @@ export async function derive(code: string): Promise<Room> {
 	// stay reachable on the heap.
 	bytes.fill(0);
 
-	return { roomId, key };
+	return { roomId, key, writeToken };
 }
 
 function hex(bytes: Uint8Array): string {

@@ -12,6 +12,9 @@
  * position to see.
  */
 
+import { createHash } from 'node:crypto';
+import { constantTimeEqual } from './secret';
+
 /**
  * Validated before it touches a blob path, in every handler, always.
  *
@@ -31,7 +34,22 @@ export const EXPIRY_MS = 182 * 24 * 60 * 60 * 1000;
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
-export type StoredRoom = { v: number; blob: string; at: number };
+/**
+ * What a client proves it may write with: 32 hex characters derived from the
+ * code alongside the room id, and independent of both it and the key. Knowing
+ * a room's address is enough to read its ciphertext and no longer enough to
+ * overwrite it.
+ */
+export const WRITE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+const TOKEN_HASH = /^[0-9a-f]{64}$/;
+
+/**
+ * `w` is the hash of the write token, set by the first write that carried one
+ * and checked on every write after. Only the hash is stored, so the store
+ * itself holds nothing a write could be made with. Rooms written before the
+ * token existed have none, and are claimed by the next write that brings one.
+ */
+export type StoredRoom = { v: number; blob: string; at: number; w?: string };
 
 export type BlobEntry = { pathname: string; uploadedAt: Date; size: number };
 
@@ -54,7 +72,10 @@ export type ReadResult =
 	| { status: 'ok'; etag: string; room: StoredRoom };
 
 export type WriteResult =
-	{ status: 'ok'; v: number } | { status: 'conflict'; room: StoredRoom } | { status: 'too-large' };
+	| { status: 'ok'; v: number }
+	| { status: 'conflict'; room: StoredRoom }
+	| { status: 'too-large' }
+	| { status: 'forbidden' };
 
 /**
  * Where a room lives, optionally under an environment prefix.
@@ -70,6 +91,20 @@ export function roomPath(roomId: string, prefix = ''): string {
 
 export function isRoomId(value: string | undefined): value is string {
 	return typeof value === 'string' && ROOM_ID_PATTERN.test(value);
+}
+
+export function isWriteToken(value: string | null | undefined): value is string {
+	return typeof value === 'string' && WRITE_TOKEN_PATTERN.test(value);
+}
+
+/** `Authorization: Bearer <token>`, or null when it is missing or malformed. */
+export function writeTokenFrom(header: string | null): string | null {
+	const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+	return isWriteToken(token) ? token : null;
+}
+
+export function hashToken(token: string): string {
+	return createHash('sha256').update(token).digest('hex');
 }
 
 /**
@@ -150,18 +185,31 @@ export class RoomStore {
 	 * its own stamps did not come back, which is what actually makes a lost
 	 * write self-healing.
 	 */
-	async write(roomId: string, body: PutBody): Promise<WriteResult> {
+	async write(roomId: string, body: PutBody, token: string): Promise<WriteResult> {
+		if (!isWriteToken(token)) return { status: 'forbidden' };
 		if (byteLength(body.blob) > MAX_BLOB_BYTES) return { status: 'too-large' };
 
 		const path = roomPath(roomId, this.#prefix);
 		const existing = parseStored((await this.#blobs.get(path)) ?? '');
 		const current = existing?.v ?? 0;
+		const hash = hashToken(token);
+
+		// Checked before the version, so a refused writer is told nothing a
+		// read would not have told it anyway.
+		if (existing?.w !== undefined && !constantTimeEqual(existing.w, hash)) {
+			return { status: 'forbidden' };
+		}
 
 		if (body.baseV !== current) {
 			return { status: 'conflict', room: existing ?? { v: 0, blob: '', at: 0 } };
 		}
 
-		const next: StoredRoom = { v: current + 1, blob: body.blob, at: this.#now() };
+		const next: StoredRoom = {
+			v: current + 1,
+			blob: body.blob,
+			at: this.#now(),
+			w: existing?.w ?? hash
+		};
 		await this.#blobs.put(path, JSON.stringify(next));
 		this.#cache.set(path, { at: this.#now(), room: next });
 
@@ -208,12 +256,13 @@ function parseStored(body: string): StoredRoom | null {
 		const value: unknown = JSON.parse(body);
 		if (typeof value !== 'object' || value === null) return null;
 
-		const { v, blob, at } = value as Record<string, unknown>;
+		const { v, blob, at, w } = value as Record<string, unknown>;
 		if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return null;
 		if (typeof blob !== 'string') return null;
 		if (typeof at !== 'number') return null;
+		if (w !== undefined && (typeof w !== 'string' || !TOKEN_HASH.test(w))) return null;
 
-		return { v, blob, at };
+		return w === undefined ? { v, blob, at } : { v, blob, at, w };
 	} catch {
 		return null;
 	}
