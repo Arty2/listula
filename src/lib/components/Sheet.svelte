@@ -448,7 +448,10 @@
 		 * — and of the two ways that can go, a group on both lists is something a
 		 * person can see and sort out, while a group on neither is writing gone.
 		 */
-		lists.writeDoc(target, carried.to);
+		if (!lists.writeDoc(target, carried.to)) {
+			if (made) lists.forget(target);
+			return;
+		}
 		sheet.replace(carried.from);
 
 		/*

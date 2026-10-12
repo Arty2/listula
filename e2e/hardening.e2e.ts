@@ -8,7 +8,7 @@ import { fromMenu, menuButton, openMenu } from './menu';
  *
  * The response headers in vercel.json only exist on a deploy, so they are
  * asserted against the file rather than pretended to be live here; the same
- * goes for Lighthouse. Both are in the README's deployment checklist.
+ * goes for Lighthouse, which only a deployed preview can show.
  */
 
 async function addTask(page: Page, text: string) {

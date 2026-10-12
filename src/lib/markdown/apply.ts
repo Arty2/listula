@@ -1,8 +1,17 @@
 import { newId } from '$lib/doc/id';
 import { LIMITS } from '$lib/doc/limits';
-import { addGroup, addTask, countGroups, countTasks, liveGroups, liveTasks } from '$lib/doc/ops';
+import {
+	addGroup,
+	addTask,
+	countGroups,
+	countTasks,
+	deleteGroup,
+	deleteTask,
+	liveGroups,
+	liveTasks
+} from '$lib/doc/ops';
 import type { Ctx } from '$lib/doc/stamp';
-import { emptyDoc, type Doc } from '$lib/doc/types';
+import type { Doc } from '$lib/doc/types';
 import type { Parsed } from './from';
 
 /**
@@ -28,7 +37,7 @@ export function applyImport(
 	parsed: Parsed,
 	mode: 'add' | 'replace'
 ): ImportResult {
-	let doc = mode === 'replace' ? emptyDoc() : base;
+	let doc = mode === 'replace' ? cleared(base, ctx) : base;
 
 	// Existing text per group, so a re-import of the same list adds nothing.
 	const seen = new Map<string, Set<string>>();
@@ -110,4 +119,19 @@ export function applyImport(
 	}
 
 	return { doc, added, skipped, refused: null };
+}
+
+/**
+ * Everything on the sheet, deleted through the ordinary path.
+ *
+ * Not an empty document: a list that has been synced still holds all of this
+ * on the server, and records simply absent here would merge straight back on
+ * the next sync. Tombstones are what say they went. Loose ends included, since
+ * those belong to no group a group delete would reach.
+ */
+function cleared(doc: Doc, ctx: Ctx): Doc {
+	let next = doc;
+	for (const group of liveGroups(next)) next = deleteGroup(next, ctx, group.id);
+	for (const task of liveTasks(next)) next = deleteTask(next, ctx, task.id);
+	return next;
 }

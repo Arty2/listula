@@ -1,7 +1,14 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { vercelBlobs } from '$lib/server/blobs';
 import { blobPrefix } from '$lib/server/env';
-import { RoomStore, isRoomId, parsePutBody, MAX_BLOB_BYTES } from '$lib/server/store';
+import { RateLimiter, READS_PER_MINUTE, WRITES_PER_MINUTE } from '$lib/server/limit';
+import {
+	RoomStore,
+	isRoomId,
+	parsePutBody,
+	writeTokenFrom,
+	MAX_BLOB_BYTES
+} from '$lib/server/store';
 
 /*
  * One list, one endpoint. The server sees a room id and a base64 blob and
@@ -9,7 +16,9 @@ import { RoomStore, isRoomId, parsePutBody, MAX_BLOB_BYTES } from '$lib/server/s
  * either.
  *
  * Nothing is logged per request. Not the room id, not the body, not the IP: a
- * log line containing room ids is a list of everyone's lists.
+ * log line containing room ids is a list of everyone's lists. The rate limits
+ * below hold addresses in memory for a minute to count them, and write them
+ * nowhere.
  */
 
 export const prerender = false;
@@ -28,7 +37,26 @@ function notFound() {
 	return new Response(null, { status: 404, headers: NO_STORE });
 }
 
-export const GET: RequestHandler = async ({ params, request }) => {
+const reads = new RateLimiter(READS_PER_MINUTE, 60_000);
+const writes = new RateLimiter(WRITES_PER_MINUTE, 60_000);
+
+function tooMany() {
+	return new Response(null, { status: 429, headers: { ...NO_STORE, 'Retry-After': '60' } });
+}
+
+/** The address the platform says the request came from. */
+function addressOf(event: { getClientAddress?: () => string }): string {
+	try {
+		return event.getClientAddress?.() ?? 'unknown';
+	} catch {
+		return 'unknown';
+	}
+}
+
+export const GET: RequestHandler = async (event) => {
+	const { params, request } = event;
+	if (!reads.take(addressOf(event))) return tooMany();
+
 	// Validated before it can reach a blob path.
 	if (!isRoomId(params.roomId)) return notFound();
 
@@ -50,8 +78,15 @@ export const GET: RequestHandler = async ({ params, request }) => {
 	);
 };
 
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async (event) => {
+	const { params, request } = event;
+	if (!writes.take(addressOf(event))) return tooMany();
+
 	if (!isRoomId(params.roomId)) return notFound();
+
+	// No token, no write — before the body is so much as read.
+	const token = writeTokenFrom(request.headers.get('authorization'));
+	if (!token) return new Response(null, { status: 401, headers: NO_STORE });
 
 	if (Number(request.headers.get('content-length')) > MAX_BLOB_BYTES * 2) {
 		return new Response(null, { status: 413, headers: NO_STORE });
@@ -67,7 +102,11 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 	const body = parsePutBody(raw);
 	if (!body) return new Response(null, { status: 400, headers: NO_STORE });
 
-	const result = await store.write(params.roomId, body);
+	const result = await store.write(params.roomId, body, token);
+
+	if (result.status === 'forbidden') {
+		return new Response(null, { status: 403, headers: NO_STORE });
+	}
 
 	if (result.status === 'too-large') {
 		return new Response(null, { status: 413, headers: NO_STORE });

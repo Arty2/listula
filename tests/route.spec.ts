@@ -59,21 +59,30 @@ async function route() {
 	return import('../src/routes/api/room/[roomId]/+server');
 }
 
+const TOKEN = 'b'.repeat(32);
+
+/** Where a request says it came from, for the rate limits. */
+let address = '192.0.2.1';
+
 function get(roomId: string, ifNoneMatch?: string) {
 	const headers = new Headers();
 	if (ifNoneMatch) headers.set('if-none-match', ifNoneMatch);
-	return { params: { roomId }, request: new Request('http://x/', { headers }) };
-}
-
-function put(roomId: string, body: unknown) {
-	const text = JSON.stringify(body);
 	return {
 		params: { roomId },
-		request: new Request('http://x/', {
-			method: 'PUT',
-			body: text,
-			headers: { 'content-length': String(text.length) }
-		})
+		request: new Request('http://x/', { headers }),
+		getClientAddress: () => address
+	};
+}
+
+function put(roomId: string, body: unknown, token: string | null = TOKEN) {
+	const text = JSON.stringify(body);
+	const headers: Record<string, string> = { 'content-length': String(text.length) };
+	if (token !== null) headers.authorization = `Bearer ${token}`;
+
+	return {
+		params: { roomId },
+		request: new Request('http://x/', { method: 'PUT', body: text, headers }),
+		getClientAddress: () => address
 	};
 }
 
@@ -166,7 +175,12 @@ describe('the room route', () => {
 
 		const garbage = await PUT({
 			params: { roomId: ROOM },
-			request: new Request('http://x/', { method: 'PUT', body: 'not json' })
+			request: new Request('http://x/', {
+				method: 'PUT',
+				body: 'not json',
+				headers: { authorization: `Bearer ${TOKEN}` }
+			}),
+			getClientAddress: () => address
 		} as Event);
 		expect(garbage.status).toBe(400);
 
@@ -189,8 +203,12 @@ describe('the room route', () => {
 			request: new Request('http://x/', {
 				method: 'PUT',
 				body: JSON.stringify({ baseV: 0, blob: BLOB }),
-				headers: { 'content-length': String(10 * 1024 * 1024) }
-			})
+				headers: {
+					'content-length': String(10 * 1024 * 1024),
+					authorization: `Bearer ${TOKEN}`
+				}
+			}),
+			getClientAddress: () => address
 		} as Event);
 
 		expect(oversized.status).toBe(413);
@@ -218,12 +236,94 @@ describe('the room route', () => {
 		await GET(get(ROOM) as Event);
 
 		/*
-		 * What is on disk is the ciphertext, a version, and the timestamp the
-		 * six-month sweep reads. Nothing else — no room id, no plaintext, and
-		 * nothing that could reconstruct either.
+		 * What is on disk is the ciphertext, a version, the timestamp the
+		 * six-month sweep reads, and the hash of the write token. Nothing else —
+		 * no room id, no plaintext, and nothing that could reconstruct either,
+		 * nor the token itself.
 		 */
 		const stored = JSON.parse([...blobs.files.values()][0].body);
-		expect(Object.keys(stored).sort()).toStrictEqual(['at', 'blob', 'v']);
+		expect(Object.keys(stored).sort()).toStrictEqual(['at', 'blob', 'v', 'w']);
 		expect(stored.blob).toBe(BLOB);
+		expect(stored.w).toMatch(/^[0-9a-f]{64}$/);
+		expect(JSON.stringify(stored)).not.toContain(TOKEN);
+	});
+});
+
+describe('who may write', () => {
+	const OTHER_TOKEN = 'c'.repeat(32);
+
+	it('refuses a write without a token, before reading the body', async () => {
+		const { PUT } = await route();
+
+		for (const token of [null, 'short', 'B'.repeat(32)]) {
+			const refused = await PUT(put(ROOM, { baseV: 0, blob: BLOB }, token) as Event);
+			expect(refused.status, String(token)).toBe(401);
+		}
+		expect(blobs.files.size).toBe(0);
+	});
+
+	it('lets only the token that made a list write to it again', async () => {
+		const { GET, PUT } = await route();
+		await PUT(put(ROOM, { baseV: 0, blob: BLOB }) as Event);
+
+		const stranger = await PUT(put(ROOM, { baseV: 1, blob: btoa('junk') }, OTHER_TOKEN) as Event);
+		expect(stranger.status).toBe(403);
+		// Told nothing a read would not tell it.
+		expect(await stranger.text()).toBe('');
+
+		const owner = await PUT(put(ROOM, { baseV: 1, blob: btoa('newer') }) as Event);
+		expect(owner.status).toBe(200);
+		expect(await (await GET(get(ROOM) as Event)).json()).toStrictEqual({
+			v: 2,
+			blob: btoa('newer')
+		});
+	});
+
+	it('never hands the token hash back', async () => {
+		const { GET, PUT } = await route();
+		await PUT(put(ROOM, { baseV: 0, blob: BLOB }) as Event);
+
+		const read = await (await GET(get(ROOM) as Event)).text();
+		const conflict = await (await PUT(put(ROOM, { baseV: 0, blob: BLOB }) as Event)).text();
+
+		for (const body of [read, conflict])
+			expect(Object.keys(JSON.parse(body)).sort()).toStrictEqual(['blob', 'v']);
+	});
+
+	it('lets a list written before tokens be claimed by the next write', async () => {
+		const { PUT } = await route();
+		// What a list looks like on disk from before the token existed.
+		blobs.files.set(`dev/rooms/${ROOM}.json`, {
+			body: JSON.stringify({ v: 4, blob: BLOB, at: 1 }),
+			uploadedAt: new Date()
+		});
+
+		expect((await PUT(put(ROOM, { baseV: 4, blob: btoa('mine') }) as Event)).status).toBe(200);
+		expect(
+			(await PUT(put(ROOM, { baseV: 5, blob: btoa('junk') }, OTHER_TOKEN) as Event)).status
+		).toBe(403);
+	});
+});
+
+describe('how often', () => {
+	it('turns an address away once it has written too often in a minute', async () => {
+		const { PUT } = await route();
+		const { WRITES_PER_MINUTE } = await import('../src/lib/server/limit');
+		address = '198.51.100.7';
+
+		for (let i = 0; i < WRITES_PER_MINUTE; i++) {
+			const ok = await PUT(put(ROOM, { baseV: i, blob: BLOB }) as Event);
+			expect(ok.status).toBe(200);
+		}
+
+		const limited = await PUT(put(ROOM, { baseV: WRITES_PER_MINUTE, blob: BLOB }) as Event);
+		expect(limited.status).toBe(429);
+		expect(limited.headers.get('cache-control')).toBe('no-store');
+
+		// Somebody else is not held up by it.
+		address = '198.51.100.8';
+		const other = await PUT(put(ROOM, { baseV: WRITES_PER_MINUTE, blob: BLOB }) as Event);
+		expect(other.status).toBe(200);
+		address = '192.0.2.1';
 	});
 });

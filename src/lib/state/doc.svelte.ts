@@ -36,7 +36,13 @@ export function firstGroupTitle(): string {
  * that happens to them (see src/lib/sync).
  */
 export class Sheet {
-	doc = $state<Doc>(emptyDoc());
+	/*
+	 * Raw rather than deeply proxied: the document is never mutated in place —
+	 * every op hands back a new one that shares its unchanged records — so a
+	 * proxy over it bought nothing but a wrapper on every read, and record
+	 * identity is what sync uses to find what changed while it was out.
+	 */
+	doc = $state.raw<Doc>(emptyDoc());
 	loaded = $state(false);
 	/**
 	 * Whether anything has ever been written on this sheet.

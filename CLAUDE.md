@@ -28,14 +28,14 @@ is not a thing to infer from a batch of changes.
 
 ## The gesture reference
 
-`TECHNICAL.md`'s **Gestures** section is the only place the app says what it
+`README.md`'s **Gestures** section is the only place the app says what it
 answers to. Nothing on the sheet is labelled, there is no help screen, no
 tooltip and no empty-state copy — that is settled (§12.14) and is not going to
 change — so a gesture that is not written down there is a gesture nobody
-outside this repository can find. `README.md` keeps only a plain paragraph of
-what the app is and how a list is shared, and links to that section; the
-gestures themselves are not repeated there, or there are two records to keep
-in step and one of them is always wrong.
+outside this repository can find. It is the one record: gestures are not
+repeated anywhere else, or there are two records to keep in step and one of
+them is always wrong. The README is written in brief, plain, encyclopaedic
+prose, and the section follows suit — tables first, a sentence or two after.
 
 **A change to any interaction is not finished until that section says so, in
 the same commit.** Not a follow-up, not a later tidy: a reference describing an
@@ -62,8 +62,7 @@ What counts as an interaction, and so has to be reflected there:
   least discoverable thing in the app.
 
 What does **not** go there: why it is that way, which belongs in
-`DECISIONS.md`, and how it is built, which belongs here or in the rest of
-`TECHNICAL.md`. The section says what a finger does and what happens; one
+`DECISIONS.md`, and how it is built, which belongs here. The section says what a finger does and what happens; one
 clause of reason where it stops the reader wondering, and no more.
 
 ## Non-negotiable
@@ -163,6 +162,8 @@ The build plan is the specification; these were settled after it was written and
 - **The toast comes down from above the paper and goes back up the same way**, and can be thrown out by hand — up or right, since down is the sheet's own scrolling and left is the way the paper turns. Leaving needs the node to stay in the document while the movement runs, so `ui.dismiss()` starts it leaving and `ui.gone()` removes it; an undo passes `now`, because it replaces the very thing the message was about. Thrown clear rather than played back up: sliding it home first would be the message arguing with the hand that had just moved it. Note that Svelte scopes the keyframes a component declares, so `animationName` in a handler carries a hash and can never be compared to the name in the file — the leaving end is told by state instead.
 - QR code in SHARE and a "move everyone to a new code" flow are **out of scope**. Work stops at M7.
 - CSP names two framework Trusted Types policies, `svelte-trusted-html` (Svelte's own template writes) and `sveltekit-trusted-url` (the service worker registration). Chrome will not hydrate without the first; SvelteKit will not build without the second. `style-src` carries one pinned hash under `'unsafe-hashes'` for SvelteKit's `#svelte-announcer`, which is framework markup we do not author — that is not `'unsafe-inline'`, and e2e/csp.e2e.ts fails on any console error if it drifts.
+- **A write proves it may write.** `derive` carves a write token out of bytes 16..32 of the PBKDF2 output — bytes nothing used, so no roomId or key moved — and every PUT sends it as `Authorization: Bearer`. The server keeps only its SHA-256 hash (`w` in the stored room), set by the first write that brings one and compared in constant time after that; a room from before the token is claimed by its next write. Like the roomId, the token is a derived value that goes to the server, which is what the first non-negotiable allows of no other derived value; unlike the roomId it is never stored in the clear and never handed back. Knowing a list's address is enough to read its ciphertext and no longer enough to overwrite it.
+- **The room API counts requests per address** (`src/lib/server/limit.ts`): 120 reads and 30 writes a minute, then 429, which the client reports as busy. It is counted in each function instance's memory, so it is a floor; a rate-limit rule in the Vercel firewall is the layer that sees every instance. The addresses are held for a minute to be counted and are never logged.
 - The ETag on a room is the document's own version, never the blob's upload time and size: two writes in one millisecond with same-length JSON collide, and the second is reported unchanged.
 - Client JavaScript stays under 100 KB gzipped (`pnpm budget`, enforced in CI).
 - PWA icons are drawn by scripts/icons.ts at build time into static/icons, which is gitignored. The asset gate exempts that directory only while it stays gitignored. The mark is `[x]`, drawn — brackets included, since Graphe has none and an icon cannot fall back.
@@ -170,7 +171,7 @@ The build plan is the specification; these were settled after it was written and
 - iOS ignores the manifest for its launch screen and wants `apple-touch-startup-image` per device size. There are none, so an installed iOS app still opens on its own white screen. Known, and left.
 - The page is prerendered (`prerender = true` in `src/routes/+layout.ts`). Only `/api/*` is dynamic.
 - `src/lib/server/store.ts` is the only file that imports `@vercel/blob`.
-- One typeface, everywhere — §6's two faces are down to one. There is exactly one `@font-face` in src/app.css and one variable, `--hand`, that names it; titles and body separate by size and caps. The face is Graphe, the owner's own and not open-licensed; a fork that publishes must substitute its own, licensed for webfont embedding and redistribution. The single exception is `.num`, a recognised amount or cost, set in `--mono` — a system stack, so it is still one `@font-face`, one file and no request. Nothing else may leave the hand, and `e2e/design.e2e.ts` names the carve-out rather than inferring it.
+- One typeface, everywhere — §6's two faces are down to one. There is exactly one `@font-face` in src/app.css and one variable, `--hand`, that names it; titles and body separate by size and caps. The face is Graphe Alpha, the owner's own, released under the SIL Open Font License, so it can be embedded and redistributed, forks included. The single exception is `.num`, a recognised amount or cost, set in `--mono` — a system stack, so it is still one `@font-face`, one file and no request. Nothing else may leave the hand, and `e2e/design.e2e.ts` names the carve-out rather than inferring it.
 - Scale corrections for the face live in `size-adjust`/`ascent-override`/`descent-override` on that one `@font-face`, never spread across `--size-*`. Graphe is drawn on a much larger body than the rem values assume. Swapping the face means retuning those three and the preload in src/app.html — a stale preload fails the prerender rather than shipping a dead link.
 - Graphe has no `[`, `]` or `\`; they fall back deliberately. Never rewrite the markdown checkbox tokens to work around it — the export has to stay readable by other apps.
 

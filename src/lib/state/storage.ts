@@ -91,13 +91,16 @@ export function read(key: string): string | null {
 	}
 }
 
-export function write(key: string, value: string): void {
-	if (!browser) return;
+/** False when storage refused it, for the one caller that has to know. */
+export function write(key: string, value: string): boolean {
+	if (!browser) return false;
 	try {
 		localStorage.setItem(key, value);
+		return true;
 	} catch {
 		// Quota or a blocked storage partition. The app stays usable for this
 		// session; there is nothing useful to say about it on the sheet.
+		return false;
 	}
 }
 

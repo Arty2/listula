@@ -1,4 +1,4 @@
-import { rng } from './rng.ts';
+import { rng, seedFrom } from './rng.ts';
 
 /**
  * Every mark in the app is one of these. There are no image files, no icon
@@ -413,6 +413,21 @@ export function handScribble(width: number, height: number, options: HandOptions
 	}
 
 	return handPath(points, { ...options, wobble: options.wobble ?? 0.9 });
+}
+
+let scribbled: string | null = null;
+
+/**
+ * The delete mark itself. One drawing everywhere, so it is drawn once and every
+ * row and header that shows it shares the path, rather than each redrawing the
+ * same scribble from the same seed as it mounts.
+ */
+export function scribbleMark(): string {
+	scribbled ??= handScribble(SCRIBBLE.w, SCRIBBLE.h, {
+		seed: seedFrom(SCRIBBLE.seed),
+		wobble: 0.7
+	});
+	return scribbled;
 }
 
 /**
