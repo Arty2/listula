@@ -259,6 +259,16 @@
 		 */
 		if (drag.dragging || drag.swiping) {
 			dragStart = null;
+			/*
+			 * Already under way: the paper has to be put back, or `dragging`
+			 * stays set with no release left to clear it and `drag.turning`
+			 * refuses every press on the sheet after this one.
+			 */
+			if (dragging) {
+				dragging = false;
+				if (turn > 0 || slide > 0) settling = true;
+				else flat();
+			}
 			return;
 		}
 

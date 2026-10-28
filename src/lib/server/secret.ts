@@ -19,12 +19,16 @@ export function constantTimeEqual(a: string, b: string): boolean {
 	return diff === 0;
 }
 
+/** What follows `Authorization: Bearer `, or null when that is not its shape. */
+export function bearer(header: string | null): string | null {
+	const prefix = 'Bearer ';
+	return header?.startsWith(prefix) ? header.slice(prefix.length) : null;
+}
+
 /** `Authorization: Bearer <secret>`, and nothing else. */
 export function bearerMatches(header: string | null, secret: string | undefined): boolean {
-	if (!header || !secret) return false;
+	if (!secret) return false;
 
-	const prefix = 'Bearer ';
-	if (!header.startsWith(prefix)) return false;
-
-	return constantTimeEqual(header.slice(prefix.length), secret);
+	const given = bearer(header);
+	return given !== null && constantTimeEqual(given, secret);
 }

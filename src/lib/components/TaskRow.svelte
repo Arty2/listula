@@ -42,6 +42,15 @@
 		 * of room is still being typed at the end.
 		 */
 		onsplit: (next?: { carried?: string; above?: boolean; atStart?: boolean }) => void;
+		/**
+		 * Whether a row cut in two has anywhere to put its second half. False
+		 * with the list full, and in Loose ends, which opens no rows. Then the
+		 * task is not cut: cut, the half that went down had nowhere to land
+		 * and was gone.
+		 */
+		cansplit: boolean;
+		/** Told when a cut was refused, so the reason can be said. */
+		onsplitrefused: () => void;
 		/** Backspace on an emptied row: it goes, and the one above opens. */
 		onback: () => void;
 		/**
@@ -67,6 +76,8 @@
 		onedit,
 		ondelete,
 		onsplit,
+		cansplit,
+		onsplitrefused,
 		onback,
 		onjoin,
 		onopened,
@@ -360,6 +371,17 @@
 		const over = spill(draft, LIMITS.taskText);
 		if (over === null) return;
 
+		/*
+		 * Nowhere for the rest to go. The row is held at the limit, as clean()
+		 * would hold it, and the reason is said — the one case here where the
+		 * row stops taking characters, and so the one that must not be silent.
+		 */
+		if (!cansplit) {
+			draft = over.head;
+			onsplitrefused();
+			return;
+		}
+
 		draft = over.head;
 		commit();
 		// Still being typed, so the caret goes behind what came down rather than
@@ -410,6 +432,13 @@
 		if (head.trim() === '') {
 			commit();
 			onsplit(atStart ? { above: true } : undefined);
+			return;
+		}
+
+		// Kept whole when the second half would have nowhere to go.
+		if (!cansplit) {
+			commit();
+			onsplitrefused();
 			return;
 		}
 

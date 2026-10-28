@@ -34,9 +34,10 @@ export const ITERATIONS = 300_000;
 /**
  * 12 hex characters is 48 bits.
  *
- * Reads and writes both go through our own origin, but there is no rate
- * limiter behind it, so guessing is bounded only by an attacker's request rate
- * and the PBKDF2 cost. At 8 characters (32 bits) that is days of work for
+ * Reads and writes both go through our own origin, and the only rate limit
+ * behind it is counted per function instance (src/lib/server/limit.ts), so it
+ * is a floor rather than a wall: guessing is bounded mostly by an attacker's
+ * request rate and the PBKDF2 cost. At 8 characters (32 bits) that is days of work for
  * someone determined; 12 makes it roughly 65,000 times more, which ends the
  * argument. Exported as a constant so it can be raised again without a
  * rewrite.

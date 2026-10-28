@@ -85,7 +85,9 @@ place the caret.
 | `Escape`                    | Discards the edit                                                 |
 | Typing past 200 characters  | The task fills up and the rest starts a new one                   |
 
-A countdown of the characters left appears in the last ten.
+A countdown of the characters left appears in the last ten. With the list at
+its 100 tasks, or in Loose ends, a task is not split: `Enter` saves it whole,
+and typing stops at 200 characters, with a message saying why.
 
 ### Groups
 
@@ -123,7 +125,7 @@ closed.
 | Burger     | Hold                     | Turns debug mode on                                             |
 | Sync mark  | Tap                      | Syncs; the mark appears only when there is something to report  |
 | List name  | Tap                      | Shows the other lists and `+ NEW LIST`                          |
-| List name  | Double tap               | Opens the next list directly                                    |
+| List name  | Double tap               | Opens the next list, in the order the lists were made           |
 | Theme mark | Tap                      | Switches between the opposite of the phone's theme and the same |
 | Code field | Tap while empty          | Pastes a code from the clipboard                                |
 | A message  | Tap `UNDO?`              | Undoes what the message describes                               |
