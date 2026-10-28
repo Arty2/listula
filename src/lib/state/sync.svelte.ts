@@ -392,8 +392,13 @@ export class SyncState {
 			this.#unreachable = false;
 			this.#lastSynced = outcome.doc;
 			this.#etag = `"${outcome.v}"`;
-			write(this.#keys.version, this.#etag);
-			write(this.#keys.synced, canonical(outcome.doc));
+			// The snapshot before the version that vouches for it: a version left
+			// beside an older snapshot would answer a 304 with the wrong document.
+			if (write(this.#keys.synced, canonical(outcome.doc))) {
+				write(this.#keys.version, this.#etag);
+			} else {
+				remove(this.#keys.version);
+			}
 
 			this.refresh();
 			return;

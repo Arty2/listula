@@ -277,7 +277,13 @@
 		error = null;
 		joining = false;
 
-		const back = keep || !hasLocal ? null : lists.createList();
+		/*
+		 * A new list unless this one is truly blank. No tasks is not enough: a
+		 * list with a code, or with groups named on it, joined into in place had
+		 * its code overwritten and its groups wiped.
+		 */
+		const blank = !hasLocal && !sheet.written && sync.code === null;
+		const back = keep || blank ? null : lists.createList();
 
 		// Read before the request, not after: the field stays editable while it
 		// is out, and what matters is whether the code that was sent was good.
@@ -349,6 +355,7 @@
 			springing = false;
 			turn = 0;
 			axis = 50;
+			slide = 0;
 		}
 
 		/*
