@@ -47,15 +47,36 @@ export function applyImport(
 
 	const titles = new Map(liveGroups(doc).map((g) => [g.title, g.id]));
 
-	const landing = (title: string) =>
-		title === '' && liveGroups(doc)[0] ? liveGroups(doc)[0].title : title;
+	const [first] = liveGroups(doc);
 
-	const wouldAdd = parsed.groups.reduce(
-		(total, group) =>
-			total + group.tasks.filter((t) => !seen.get(landing(group.title))?.has(t.text)).length,
-		0
-	);
-	const newGroups = parsed.groups.filter((g) => !titles.has(landing(g.title))).length;
+	/** Where a parsed group's tasks land: items above any heading join the first group. */
+	const landing = (title: string) => (title === '' && first ? first.title : title);
+
+	/*
+	 * Counted by walking the import exactly as it will be applied, so a heading
+	 * that appears twice is one new group, and a task under both is one task.
+	 * Counted per parsed heading instead, two `## Fruit` sections were refused
+	 * as two groups at the limit, although the second only reuses the first.
+	 */
+	const planned = new Map<string, Set<string>>();
+	let wouldAdd = 0;
+	let newGroups = 0;
+
+	for (const group of parsed.groups) {
+		const title = landing(group.title);
+		let texts = planned.get(title);
+		if (texts === undefined) {
+			const known = seen.get(title);
+			if (known === undefined) newGroups++;
+			texts = new Set(known);
+			planned.set(title, texts);
+		}
+		for (const task of group.tasks) {
+			if (texts.has(task.text)) continue;
+			texts.add(task.text);
+			wouldAdd++;
+		}
+	}
 
 	if (countTasks(doc) + wouldAdd > LIMITS.tasks) {
 		return { doc: base, added: 0, skipped: 0, refused: 'tasks' };
@@ -66,8 +87,6 @@ export function applyImport(
 
 	let added = 0;
 	let skipped = 0;
-
-	const [first] = liveGroups(doc);
 
 	for (const group of parsed.groups) {
 		/*
