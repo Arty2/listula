@@ -17,22 +17,28 @@
 // eslint-disable-next-line no-control-regex
 const CONTROLS = /[\u0000-\u001F\u007F-\u009F]/g;
 
-/** Bidi overrides (U+202A–U+202E) and isolates (U+2066–U+2069). */
-const BIDI = /[\u202A-\u202E\u2066-\u2069]/g;
+/**
+ * Bidi overrides (U+202A–U+202E) and isolates (U+2066–U+2069), and the three
+ * implicit marks — LRM, RLM and the Arabic letter mark — which reorder the
+ * punctuation and digits around them just as quietly.
+ */
+const BIDI = /[\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g;
 
 /** Zero-width characters and the byte order mark. */
 const INVISIBLE = /[\u200B-\u200D\uFEFF]/g;
 
 export function clean(input: string, max: number): string {
 	const collapsed = input
-		.normalize('NFC')
 		// A space rather than nothing, so a newline between two words keeps them
 		// as two words.
 		.replace(CONTROLS, ' ')
 		.replace(BIDI, '')
 		.replace(INVISIBLE, '')
 		.replace(/\s+/g, ' ')
-		.trim();
+		.trim()
+		// Last, not first: taking out an invisible character can bring a letter
+		// and its combining mark together, and only then do they compose.
+		.normalize('NFC');
 
 	return truncate(collapsed, max);
 }

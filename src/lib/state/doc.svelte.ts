@@ -2,7 +2,7 @@ import { handOff } from '$lib/doc/handoff';
 import { isId, newId } from '$lib/doc/id';
 import * as ops from '$lib/doc/ops';
 import { between } from '$lib/doc/order';
-import { createClock, type Ctx } from '$lib/doc/stamp';
+import { createClock, latest, type Ctx } from '$lib/doc/stamp';
 import { emptyDoc, type Doc, type State } from '$lib/doc/types';
 import { parseDoc } from '$lib/doc/validate';
 import { openCount, view, type ViewGroup } from '$lib/doc/view';
@@ -98,6 +98,7 @@ export class Sheet {
 
 		const stored = read(keys.doc);
 		this.doc = parseDoc(stored ?? '') ?? emptyDoc();
+		this.#ctx.clock.seed(latest(this.doc));
 		this.written = stored !== null;
 		this.loaded = true;
 
@@ -123,6 +124,8 @@ export class Sheet {
 
 	/** Replaces the whole document — used by sync and by import's replace path. */
 	replace(doc: Doc): void {
+		// Stamped after whatever just arrived, or the next edit loses to it.
+		this.#ctx?.clock.seed(latest(doc));
 		this.doc = doc;
 		this.#save();
 	}
@@ -193,6 +196,8 @@ export class Sheet {
 			tasks: ops.liveTasks(this.doc, id).map((t) => ({ id: t.id, text: t.text }))
 		};
 
+		// The list it lands on may hold stamps from a clock ahead of this one.
+		this.#ctx.clock.seed(latest(to));
 		const result = handOff(this.doc, to, this.#ctx, id);
 		if (!result) return null;
 

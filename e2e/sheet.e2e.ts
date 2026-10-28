@@ -170,7 +170,7 @@ test('deletes a task and offers it back', async ({ page }) => {
 	await task(page, 'Bread').click();
 	await page.getByRole('button', { name: 'Delete task' }).first().click();
 
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'UNDO?' }).click();
 	await expect(task(page, 'Bread')).toBeVisible();
@@ -199,7 +199,7 @@ test('the group mark sweeps its done tasks only, and half-done stays', async ({ 
 	await page.getByRole('button', { name: 'Listula' }).dblclick();
 	await page.getByRole('button', { name: 'Clear done tasks' }).click();
 
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 	await expect(task(page, 'Coffee')).toBeVisible();
 	await expect(task(page, 'Milk')).toBeVisible();
 
@@ -276,7 +276,7 @@ test('makes a group, collapses it, and remembers that locally', async ({ page })
 
 	// The icon collapses; the title is for renaming and does not toggle.
 	await page.getByRole('button', { name: 'Collapse group' }).nth(1).click();
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 	// Nothing in it is done, so both halves of a fraction would be the same
 	// number and it says no more than the total does.
 	await expect(page.getByRole('button', { name: 'Expand group' })).toHaveText('(1)');
@@ -595,7 +595,7 @@ test('the title renames, the icon collapses, and neither does the other', async 
 
 	// And the icon collapses without opening the name.
 	await page.getByRole('button', { name: 'Collapse group' }).click();
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('textbox', { name: 'Group title' })).toHaveCount(0);
 });
 
@@ -1599,11 +1599,11 @@ test('a task pulled leftwards is ticked off, and pulling it again takes it away'
 	 * rid of a task is earned by the task being finished with.
 	 */
 	await pull(page, words, 120);
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 	await expect(task(page, 'Coffee')).toBeVisible();
 
 	await page.reload();
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 });
 
 test('a task pulled away can be had back from the message it leaves', async ({ page }) => {
@@ -1644,7 +1644,7 @@ test('the mark that deletes a done task is there through both pulls', async ({ p
 	await expect(mark).toBeVisible();
 
 	await mark.click();
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 });
 
 test('a pull does not open the row it was made on', async ({ page }) => {
@@ -1716,7 +1716,7 @@ test('one tap folds a group, and two open its name', async ({ page }) => {
 
 	await title.click();
 	await expect(icon).toHaveAttribute('aria-expanded', 'false');
-	await expect(task(page, 'Bread')).toHaveCount(0);
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
 
 	// Clear of the tap window, or the next click reads as the second of a pair.
 	await page.waitForTimeout(450);
@@ -2153,4 +2153,54 @@ test('nothing is picked up off a sheet that is still moving', async ({ page }) =
 	await page.waitForTimeout(600);
 	await expect(page.locator('.lifted')).toHaveCount(1);
 	await page.mouse.up();
+});
+
+test('a full list keeps a task whole rather than cutting it in two', async ({ page }) => {
+	/*
+	 * With nowhere for a second half to go, Enter mid-task used to save the
+	 * first half and hand the rest to a row that could not take it — gone the
+	 * moment the row closed.
+	 */
+	await page.evaluate(() => {
+		const s = { t: 1, c: 'seedseedseed' };
+		const id = (n: number) => `t${String(n).padStart(11, '0')}`;
+		const tasks: Record<string, unknown> = {};
+		for (let i = 0; i < 100; i++) {
+			tasks[id(i)] = {
+				id: id(i),
+				groupId: 'gseedseedsee',
+				text: i === 0 ? 'Bread and butter' : `task ${i}`,
+				state: 'todo',
+				order: `a${String(i).padStart(3, '0')}`,
+				deleted: false,
+				stamps: { text: s, state: s, order: s, groupId: s, deleted: s }
+			};
+		}
+		const doc = {
+			v: 1,
+			groups: {
+				gseedseedsee: {
+					id: 'gseedseedsee',
+					title: 'Full',
+					order: 'a',
+					deleted: false,
+					stamps: { title: s, order: s, deleted: s }
+				}
+			},
+			tasks
+		};
+		localStorage.setItem('consumma:doc', JSON.stringify(doc));
+	});
+	await page.reload();
+	await expect(task(page, 'task 99')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Bread and butter', exact: true }).click();
+	const field = page.getByRole('textbox').first();
+	await expect(field).toBeFocused();
+	await field.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(6, 6));
+	await field.press('Enter');
+
+	await expect(task(page, 'Bread and butter')).toBeVisible();
+	await expect(page.getByRole('checkbox', { name: 'Bread', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('checkbox')).toHaveCount(100);
 });

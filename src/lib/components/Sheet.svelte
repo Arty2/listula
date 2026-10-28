@@ -280,8 +280,7 @@
 		const above = sheet.groups.find((group) => group.id === groupId)?.tasks[index - 1];
 		if (!above) return false;
 
-		const seam = length(above.text);
-		if (seam + length(text) > LIMITS.taskText) return false;
+		if (length(above.text) + length(text) > LIMITS.taskText) return false;
 
 		sheet.editTask(above.id, above.text + text);
 		// A row still being typed has no task of its own to take away; it simply
@@ -289,7 +288,12 @@
 		if (taskId) sheet.deleteTask(taskId);
 
 		inserting = null;
-		opening = { id: above.id, at: seam };
+		/*
+		 * In UTF-16 units, which is what the field's caret counts in. The limit
+		 * above is in code points; the caret is not, and a seam counted that way
+		 * stood one short for every emoji in the task above.
+		 */
+		opening = { id: above.id, at: above.text.length };
 		return true;
 	}
 
@@ -719,6 +723,9 @@
 									carried: next?.carried,
 									atStart: next?.atStart
 								})}
+							cansplit={!group.synthetic && sheet.canAddTask}
+							onsplitrefused={() =>
+								group.synthetic || ui.say(t.toast.overTasks({ max: LIMITS.tasks }))}
 							onback={() => back(group.id, taskIndex, task.id)}
 							onjoin={(text) => join(group.id, taskIndex, text, task.id)}
 							onopened={() => (opening = null)}

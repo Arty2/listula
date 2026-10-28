@@ -149,10 +149,17 @@
 		cycle();
 	}
 
+	/*
+	 * In the order the lists were made, not the order they were last used in.
+	 * Switching marks the list arrived at as the most recent, so stepping
+	 * through the most-recent order only ever traded places with the list
+	 * before — with three lists, the third was never reached.
+	 */
 	function cycle() {
-		if (sorted.length < 2) return;
-		const index = sorted.findIndex((entry) => entry.id === lists.current);
-		const next = sorted[(index + 1) % sorted.length];
+		const order = [...lists.entries].sort((a, b) => a.createdAt - b.createdAt);
+		if (order.length < 2) return;
+		const index = order.findIndex((entry) => entry.id === lists.current);
+		const next = order[(index + 1) % order.length];
 		pick(next.id);
 	}
 
