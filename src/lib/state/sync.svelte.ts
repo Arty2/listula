@@ -64,6 +64,29 @@ export class SyncState {
 	 * there now.
 	 */
 	#epoch = 0;
+
+	/*
+	 * Moves the epoch on, and with it everything that was about the round trip
+	 * still out: `busy` and the cooldown belong to the list a sync was started
+	 * for, and the one open now has nothing in flight. Left set, the next list
+	 * boiled as if it were syncing and refused to be left until the orphaned
+	 * request — retries and all — had come home.
+	 */
+	#leave(): void {
+		this.#epoch++;
+		this.busy = false;
+	}
+
+	/*
+	 * The `finally` both entry points share: the busy flag and the cooldown are
+	 * only this flight's to clear while it is still the list's own.
+	 */
+	#landed(epoch: number): void {
+		if (epoch !== this.#epoch) return;
+		this.busy = false;
+		this.lastSyncAt = Date.now();
+		this.now = Date.now();
+	}
 	/*
 	 * Reactive: `unsent` compares against this, so a sync that changes only the
 	 * snapshot — and not the document — still has to update the mark.
@@ -116,7 +139,7 @@ export class SyncState {
 	}
 
 	#loadFrom(keys: ListKeySet): void {
-		this.#epoch++;
+		this.#leave();
 		this.#keys = keys;
 
 		const stored = read(keys.code);
@@ -221,9 +244,7 @@ export class SyncState {
 			this.#apply(outcome);
 			return outcome;
 		} finally {
-			this.busy = false;
-			this.lastSyncAt = Date.now();
-			this.now = Date.now();
+			this.#landed(epoch);
 		}
 	}
 
@@ -272,9 +293,7 @@ export class SyncState {
 			this.#apply(outcome);
 			return outcome;
 		} finally {
-			this.busy = false;
-			this.lastSyncAt = Date.now();
-			this.now = Date.now();
+			this.#landed(epoch);
 		}
 	}
 
@@ -327,7 +346,7 @@ export class SyncState {
 	 * unwritten opening group.
 	 */
 	forget(): void {
-		this.#epoch++;
+		this.#leave();
 
 		for (const key of [
 			this.#keys.doc,
@@ -346,6 +365,8 @@ export class SyncState {
 		// Back to a device that has never synced: no code until there is a list
 		// and a sync to put it under.
 		this.code = null;
+		// What the last attempt said was about the list that has just gone.
+		this.message = null;
 
 		sheet.forget();
 		sheet.switchTo(this.#keys);

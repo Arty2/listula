@@ -114,8 +114,8 @@
 		tapped();
 		const outcome = await sync.sync();
 
-		// `null` means the cooldown or an in-flight sync swallowed it; the button
-		// is disabled then, so there is nothing to explain.
+		// `null` means the cooldown or an in-flight sync swallowed it, or the list
+		// was left while it was out — nothing to explain about the list open now.
 		if (!outcome) return;
 
 		// Both halves, or the quiet one is indistinguishable from a dead button.

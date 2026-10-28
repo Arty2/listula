@@ -128,6 +128,28 @@ describe('a sync whose list has gone', () => {
 		expect(sync.busy).toBe(false);
 	});
 
+	it('leaves the list open now neither busy nor cooling', async () => {
+		const running = sync.sync({ force: true });
+		derives[0].gate.resolve(room(CODE_A));
+		await settle();
+
+		sync.switchTo(keysFor('listB'));
+		// Not boiling, and free to be left, while the other list's request is out.
+		expect(sync.busy).toBe(false);
+
+		const lastSyncAt = sync.lastSyncAt;
+		syncs[0].resolve({ status: 'synced', doc: remoteDoc('From A'), v: 7 });
+
+		expect(await running).toBeNull();
+		expect(sync.lastSyncAt).toBe(lastSyncAt);
+	});
+
+	it('forgets what the last attempt said along with the list', async () => {
+		sync.message = 'about the list that went';
+		sync.forget();
+		expect(sync.message).toBeNull();
+	});
+
 	it('does not say its failure over the list open now', async () => {
 		const running = sync.sync({ force: true });
 		derives[0].gate.resolve(room(CODE_A));

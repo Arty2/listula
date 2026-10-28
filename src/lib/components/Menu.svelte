@@ -279,6 +279,9 @@
 
 		const back = keep || !hasLocal ? null : lists.createList();
 
+		// Read before the request, not after: the field stays editable while it
+		// is out, and what matters is whether the code that was sent was good.
+		const sentValid = valid;
 		const outcome = await sync.join(entered, keep);
 
 		/*
@@ -286,7 +289,7 @@
 		 * the request was out, and the device is already wherever that took it.
 		 * Not a bad code, and nothing to go back to.
 		 */
-		if (!outcome && valid) return;
+		if (!outcome && sentValid) return;
 
 		const failed = !outcome || outcome.status !== 'synced';
 
