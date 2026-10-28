@@ -389,6 +389,8 @@ function messageFor(outcome: SyncOutcome): string | null {
 		case 'offline':
 			return t.sync.errorOffline;
 		case 'refused':
+			// The write key did not match: not a fault to diagnose by number.
+			if (outcome.code === 403) return t.sync.errorForbidden;
 			// Naming the code is the point: it is the only thing that says whether
 			// the route is missing or its store is.
 			return t.sync.errorRefused({ code: outcome.code });
