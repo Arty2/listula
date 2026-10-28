@@ -73,6 +73,7 @@ export const el = {
 		moved: 'Μετακινήθηκε.',
 		movedToList: ({ what }: { what: string }) => `Μετακινήθηκε στη λίστα ${what}.`,
 		movedToNewList: 'Μετακινήθηκε σε νέα λίστα.',
+		couldNotMove: 'Δεν ήταν δυνατή η μετακίνηση. Η συσκευή δεν την αποθήκευσε.',
 		doneRun: ({ count }: { count: number }) =>
 			`${count} ${plural(count, 'πράγμα έγινε', 'πράγματα έγιναν')}.`,
 		clear: 'ΕΚΚΑΘΑΡΙΣΗ;',

@@ -13,7 +13,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { constantTimeEqual } from './secret';
+import { bearer, constantTimeEqual } from './secret';
 
 /**
  * Validated before it touches a blob path, in every handler, always.
@@ -99,7 +99,7 @@ export function isWriteToken(value: string | null | undefined): value is string 
 
 /** `Authorization: Bearer <token>`, or null when it is missing or malformed. */
 export function writeTokenFrom(header: string | null): string | null {
-	const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+	const token = bearer(header);
 	return isWriteToken(token) ? token : null;
 }
 

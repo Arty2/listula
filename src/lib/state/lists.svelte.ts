@@ -169,12 +169,24 @@ export class Lists {
 	/**
 	 * Save-and-swap, never a sync — switching lists must never reach the
 	 * network on its own (§ sync is entirely manual). Refused while a sync for
-	 * the outgoing list is still in flight: `SyncState.sync()` mutates private
-	 * fields after an `await`, with no notion of which list it was for, so a
-	 * late completion landing on the newly active list would corrupt it.
+	 * the outgoing list is still in flight: what it brings back is discarded
+	 * once sync has been pointed elsewhere, so moving now would quietly throw
+	 * away a round trip somebody asked for.
 	 */
 	switchTo(id: string): void {
-		if (id === this.current || sync.busy) return;
+		if (sync.busy) return;
+		this.#open(id);
+	}
+
+	/*
+	 * The swap itself, with nothing refused but a list that is not there.
+	 * `deleteCurrent` comes here directly: LEAVE is not refused while a sync is
+	 * out, and once the list has been forgotten there is nothing for that sync
+	 * to come back to — refused on `busy`, the device was left standing on a
+	 * list that was no longer in the index.
+	 */
+	#open(id: string): void {
+		if (id === this.current) return;
 
 		const target = this.entries.find((entry) => entry.id === id);
 		if (!target) return;
@@ -366,7 +378,7 @@ export class Lists {
 		}
 
 		const survivor = [...remaining].sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0];
-		this.switchTo(survivor.id);
+		this.#open(survivor.id);
 		return gone;
 	}
 

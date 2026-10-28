@@ -450,6 +450,8 @@
 		 */
 		if (!lists.writeDoc(target, carried.to)) {
 			if (made) lists.forget(target);
+			// Said, or a drop that did nothing reads as a drop that is broken.
+			ui.say(t.toast.couldNotMove);
 			return;
 		}
 		sheet.replace(carried.from);

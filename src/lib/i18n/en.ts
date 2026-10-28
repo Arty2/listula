@@ -152,6 +152,8 @@ export const en = {
 		 */
 		movedToList: ({ what }: { what: string }) => `Moved to ${what}.`,
 		movedToNewList: 'Moved to a new list.',
+		/** Storage refused the list being sent to, so nothing moved. */
+		couldNotMove: 'Couldn’t move it. This device wouldn’t store it.',
 		/*
 		 * A run of ticks, and the offer to sweep it. Not "UNDO?": the run is not
 		 * a mistake to be taken back, it is work finished with, and what the

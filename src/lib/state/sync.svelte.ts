@@ -57,6 +57,14 @@ export class SyncState {
 	 */
 	#unreachable = $state(false);
 	/*
+	 * Moved on every time sync is pointed at a list, or the list it is pointed
+	 * at is forgotten. LEAVE is not refused while a sync is out, so a round trip
+	 * that began on one list can come back to find another open — or the same
+	 * keys wiped — and what it brings must not be written over whatever is
+	 * there now.
+	 */
+	#epoch = 0;
+	/*
 	 * Reactive: `unsent` compares against this, so a sync that changes only the
 	 * snapshot — and not the document — still has to update the mark.
 	 */
@@ -108,6 +116,7 @@ export class SyncState {
 	}
 
 	#loadFrom(keys: ListKeySet): void {
+		this.#epoch++;
 		this.#keys = keys;
 
 		const stored = read(keys.code);
@@ -165,10 +174,14 @@ export class SyncState {
 		this.message = null;
 		trace(`join (${keep ? 'keep' : 'discard'})`);
 
+		const epoch = this.#epoch;
+
 		try {
 			// Derived lazily: PBKDF2 at 300,000 iterations is deliberately slow, so
 			// its cost lands on an explicit tap rather than on first paint.
 			const room = await derive(code);
+			if (epoch !== this.#epoch) return null;
+
 			const pulled = await pull({
 				roomId: room.roomId,
 				key: room.key,
@@ -177,6 +190,9 @@ export class SyncState {
 				etag: null,
 				lastSynced: null
 			});
+
+			// The list this was joining into has gone while the request was out.
+			if (epoch !== this.#epoch) return null;
 
 			if (pulled.status !== 'ok') {
 				this.#apply(pulled.outcome);
@@ -200,6 +216,8 @@ export class SyncState {
 			// silently does nothing — see it, say it, same as every outcome above.
 			const outcome: SyncOutcome = { status: 'error', message: errorText(error) };
 			trace(`join threw: ${outcome.message}`);
+			// About a list that has gone, and not to be said over the one open now.
+			if (epoch !== this.#epoch) return null;
 			this.#apply(outcome);
 			return outcome;
 		} finally {
@@ -243,11 +261,14 @@ export class SyncState {
 		this.message = null;
 		trace('sync');
 
+		const epoch = this.#epoch;
+
 		try {
 			return await this.#run();
 		} catch (error) {
 			const outcome: SyncOutcome = { status: 'error', message: errorText(error) };
 			trace(`sync threw: ${outcome.message}`);
+			if (epoch !== this.#epoch) return null;
 			this.#apply(outcome);
 			return outcome;
 		} finally {
@@ -262,25 +283,35 @@ export class SyncState {
 	 * clock, and — for `join()` — confirming the code is good before this
 	 * ever runs.
 	 */
-	async #run(prefetched?: { remote: Doc | null; v: number }): Promise<SyncOutcome> {
-		// Not derived again if join() already did: `??=` is a no-op once #room
-		// is set, so the 300,000-iteration cost is never paid twice for one
-		// join.
-		this.#room ??= await derive(this.code!);
+	async #run(prefetched?: { remote: Doc | null; v: number }): Promise<SyncOutcome | null> {
+		const epoch = this.#epoch;
+
+		// Not derived again if join() already did, so the 300,000-iteration cost
+		// is never paid twice for one join.
+		const room = this.#room ?? (await derive(this.code!));
+
+		// Left while the key was being derived: this room belongs to a list that
+		// is gone, and keeping it would sync the next list under its address.
+		if (epoch !== this.#epoch) return null;
+		this.#room = room;
 
 		// What went out. The sheet stays editable for the whole round trip, so
 		// whatever is on it by the time the answer comes back may be more.
 		const sent = sheet.doc;
 
 		const outcome = await syncNow({
-			roomId: this.#room.roomId,
-			key: this.#room.key,
-			writeToken: this.#room.writeToken,
+			roomId: room.roomId,
+			key: room.key,
+			writeToken: room.writeToken,
 			local: sent,
 			etag: this.#etag,
 			lastSynced: this.#lastSynced,
 			prefetched
 		});
+
+		// And left while the request was out: what came back is about that list,
+		// and the sheet and keys now belong to another one, or to nothing.
+		if (epoch !== this.#epoch) return null;
 
 		this.#apply(outcome, sent);
 		return outcome;
@@ -296,6 +327,8 @@ export class SyncState {
 	 * unwritten opening group.
 	 */
 	forget(): void {
+		this.#epoch++;
+
 		for (const key of [
 			this.#keys.doc,
 			this.#keys.code,

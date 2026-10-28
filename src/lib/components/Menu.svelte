@@ -280,6 +280,14 @@
 		const back = keep || !hasLocal ? null : lists.createList();
 
 		const outcome = await sync.join(entered, keep);
+
+		/*
+		 * A good code and no answer: the list it was joining into was left while
+		 * the request was out, and the device is already wherever that took it.
+		 * Not a bad code, and nothing to go back to.
+		 */
+		if (!outcome && valid) return;
+
 		const failed = !outcome || outcome.status !== 'synced';
 
 		/*
