@@ -277,9 +277,26 @@
 		error = null;
 		joining = false;
 
-		const back = keep || !hasLocal ? null : lists.createList();
+		/*
+		 * A new list unless this one is truly blank. No tasks is not enough: a
+		 * list with a code, or with groups named on it, joined into in place had
+		 * its code overwritten and its groups wiped.
+		 */
+		const blank = !hasLocal && !sheet.written && sync.code === null;
+		const back = keep || blank ? null : lists.createList();
 
+		// Read before the request, not after: the field stays editable while it
+		// is out, and what matters is whether the code that was sent was good.
+		const sentValid = valid;
 		const outcome = await sync.join(entered, keep);
+
+		/*
+		 * A good code and no answer: the list it was joining into was left while
+		 * the request was out, and the device is already wherever that took it.
+		 * Not a bad code, and nothing to go back to.
+		 */
+		if (!outcome && sentValid) return;
+
 		const failed = !outcome || outcome.status !== 'synced';
 
 		/*
@@ -338,6 +355,7 @@
 			springing = false;
 			turn = 0;
 			axis = 50;
+			slide = 0;
 		}
 
 		/*

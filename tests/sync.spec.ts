@@ -314,6 +314,29 @@ describe('syncing', () => {
 	});
 });
 
+describe('a version kept without its snapshot', () => {
+	it('reads the list in full rather than taking a 304 as an empty one', async () => {
+		/*
+		 * The version and the snapshot are two storage keys. With the snapshot
+		 * lost and the version still current, a conditional read answers 304 and
+		 * there is nothing to merge it with — the push that followed replaced
+		 * the list with this device's copy alone.
+		 */
+		const one = fresh('one');
+		one.doc = addGroup(one.doc, one.ctx, { id: 'g1', title: 'Market' });
+		one.doc = addTask(one.doc, one.ctx, { id: 't1', groupId: 'g1', text: 'Bread' });
+		await sync(one);
+
+		const two = fresh('two');
+		two.etag = one.etag;
+		two.doc = addTask(two.doc, two.ctx, { id: 't2', groupId: 'g1', text: 'Coffee' });
+
+		const outcome = await sync(two);
+		expect(outcome.status).toBe('synced');
+		expect(texts(two.doc)).toStrictEqual(['Bread', 'Coffee']);
+	});
+});
+
 describe('when things go wrong', () => {
 	it('cannot overwrite a list with its address alone', async () => {
 		const one = fresh('one');

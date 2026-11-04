@@ -1,4 +1,4 @@
-import type { Stamp } from './types';
+import type { Doc, Stamp } from './types';
 
 /**
  * A per-device monotonic clock.
@@ -42,4 +42,21 @@ export type Ctx = { clientId: string; clock: Clock };
 
 export function stamp(ctx: Ctx): Stamp {
 	return { t: ctx.clock.next(), c: ctx.clientId };
+}
+
+/**
+ * The latest stamp anywhere in a document.
+ *
+ * Seeded into the clock whenever a document arrives from elsewhere — a sync,
+ * another list's storage — so the next edit here is stamped after everything
+ * it is overwriting. Without it a device whose clock runs behind one it has
+ * just merged with loses its own next edit (or undo) to the stamp it can see,
+ * and the merge quietly puts the other value back.
+ */
+export function latest(doc: Doc): number {
+	let t = 0;
+	for (const record of [...Object.values(doc.groups), ...Object.values(doc.tasks)]) {
+		for (const s of Object.values(record.stamps) as Stamp[]) if (s.t > t) t = s.t;
+	}
+	return t;
 }

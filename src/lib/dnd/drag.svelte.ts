@@ -405,6 +405,17 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 
 		function lift() {
 			timer = null;
+			/*
+			 * The paper began turning after this press armed. Once the turn has
+			 * the pointer this node hears no more moves, so the eight-pixel
+			 * cancel below never fires — and a lift landing now would pick a row
+			 * off a page that is edge-on and take the capture out from under the
+			 * turn, leaving it stuck partway round.
+			 */
+			if (drag.turning) {
+				stop();
+				return;
+			}
 			lifted = true;
 			buzz();
 
@@ -422,6 +433,10 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 		 * between is what the shorter press means, and `onpointerup` answers it.
 		 */
 		timer = setTimeout(() => {
+			if (drag.turning) {
+				stop();
+				return;
+			}
 			if (!hooks().press) {
 				lift();
 				return;

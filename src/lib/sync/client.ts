@@ -163,7 +163,12 @@ export type Pulled =
  * after, the first.
  */
 export async function pull(input: SyncInput): Promise<Pulled> {
-	const result = await getRoom(input.roomId, input.etag);
+	/*
+	 * A 304 is answered with `lastSynced`, so without one there is nothing to
+	 * merge against: the remote would be taken as empty at the current version,
+	 * and the push that follows would replace it with this device's copy alone.
+	 */
+	const result = await getRoom(input.roomId, input.lastSynced ? input.etag : null);
 
 	if (result.status === 'offline') return { status: 'stop', outcome: { status: 'offline' } };
 	if (result.status === 'slow') return { status: 'stop', outcome: { status: 'busy' } };

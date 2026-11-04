@@ -22,6 +22,14 @@ describe('clean', () => {
 		expect(length(clean(decomposed, 100))).toBe(4);
 	});
 
+	it('composes a letter and its mark once an invisible between them is gone', () => {
+		expect(clean(`cafe${ZWSP}\u0301`, 100)).toBe('caf\u00E9');
+	});
+
+	it('strips the implicit bidi marks too', () => {
+		expect(clean('a\u200Eb\u200Fc\u061Cd', 100)).toBe('abcd');
+	});
+
 	it('folds newlines and tabs into spaces rather than deleting them', () => {
 		expect(clean('bread\nmilk', 100)).toBe('bread milk');
 		expect(clean('bread\tmilk', 100)).toBe('bread milk');

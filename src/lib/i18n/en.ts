@@ -152,6 +152,8 @@ export const en = {
 		 */
 		movedToList: ({ what }: { what: string }) => `Moved to ${what}.`,
 		movedToNewList: 'Moved to a new list.',
+		/** Storage refused the list being sent to, so nothing moved. */
+		couldNotMove: 'Couldn’t move it. This device wouldn’t store it.',
 		/*
 		 * A run of ticks, and the offer to sweep it. Not "UNDO?": the run is not
 		 * a mistake to be taken back, it is work finished with, and what the
@@ -326,6 +328,14 @@ export const en = {
 		 */
 		errorRefused: ({ code }: { code: number }) =>
 			`The list’s server answered ${code}. Nothing here was lost.`,
+		/*
+		 * A 403 is the one refusal that is not a deployment fault: the server
+		 * holds a different write key for this address, so this code can still
+		 * read the list and cannot change it. Retrying will not help, and the
+		 * number alone read as the server being broken.
+		 */
+		errorForbidden:
+			'This code can read the list but not change it — the server holds another key for it. Your changes are saved here.',
 		errorWrongCode: 'That code doesn’t match a list.',
 		errorDamaged: 'That list looks damaged.',
 		errorTooLarge: 'This list is too big to send — clear some.',

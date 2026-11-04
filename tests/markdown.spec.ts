@@ -6,6 +6,7 @@ import { addGroup, addTask, liveGroups, liveTasks, setTaskState } from '../src/l
 import { merge } from '../src/lib/doc/merge';
 import { createClock, type Ctx } from '../src/lib/doc/stamp';
 import { emptyDoc, type Doc } from '../src/lib/doc/types';
+import { LIMITS } from '../src/lib/doc/limits';
 
 function fixedCtx(clientId = 'one'): Ctx {
 	let tick = 0;
@@ -233,6 +234,36 @@ describe('applying an import', () => {
 		expect(result.added).toBe(0);
 		// Nothing was changed at all.
 		expect(result.doc).toBe(doc);
+	});
+
+	it('counts a heading that appears twice as one new group', () => {
+		const ctx: Ctx = { clientId: 'one', clock: createClock(0, () => 1) };
+		let doc = emptyDoc();
+		for (let i = 0; i < LIMITS.groups - 1; i++) {
+			doc = addGroup(doc, ctx, { id: `g${i}`, title: `Group ${i}` });
+		}
+		const parsed = fromMarkdown('## Fruit\n\n- [ ] Apples\n\n## Fruit\n\n- [ ] Pears\n')!;
+
+		const result = applyImport(doc, ctx, parsed, 'add');
+
+		expect(result.refused).toBeNull();
+		expect(liveGroups(result.doc)).toHaveLength(LIMITS.groups);
+		expect(result.added).toBe(2);
+	});
+
+	it('counts a task under both copies of a heading once', () => {
+		const ctx: Ctx = { clientId: 'one', clock: createClock(0, () => 1) };
+		let doc = addGroup(emptyDoc(), ctx, { id: 'g', title: 'Fruit' });
+		for (let i = 0; i < LIMITS.tasks - 1; i++) {
+			doc = addTask(doc, ctx, { id: `t${i}`, groupId: 'g', text: `task ${i}` });
+		}
+		const parsed = fromMarkdown('## Fruit\n\n- [ ] Apples\n\n## Fruit\n\n- [ ] Apples\n')!;
+
+		const result = applyImport(doc, ctx, parsed, 'add');
+
+		expect(result.refused).toBeNull();
+		expect(result.added).toBe(1);
+		expect(result.skipped).toBe(1);
 	});
 
 	it('puts a headingless paste into the group already on the sheet', () => {

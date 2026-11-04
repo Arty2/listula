@@ -57,6 +57,37 @@ export class SyncState {
 	 */
 	#unreachable = $state(false);
 	/*
+	 * Moved on every time sync is pointed at a list, or the list it is pointed
+	 * at is forgotten. LEAVE is not refused while a sync is out, so a round trip
+	 * that began on one list can come back to find another open — or the same
+	 * keys wiped — and what it brings must not be written over whatever is
+	 * there now.
+	 */
+	#epoch = 0;
+
+	/*
+	 * Moves the epoch on, and with it everything that was about the round trip
+	 * still out: `busy` and the cooldown belong to the list a sync was started
+	 * for, and the one open now has nothing in flight. Left set, the next list
+	 * boiled as if it were syncing and refused to be left until the orphaned
+	 * request — retries and all — had come home.
+	 */
+	#leave(): void {
+		this.#epoch++;
+		this.busy = false;
+	}
+
+	/*
+	 * The `finally` both entry points share: the busy flag and the cooldown are
+	 * only this flight's to clear while it is still the list's own.
+	 */
+	#landed(epoch: number): void {
+		if (epoch !== this.#epoch) return;
+		this.busy = false;
+		this.lastSyncAt = Date.now();
+		this.now = Date.now();
+	}
+	/*
 	 * Reactive: `unsent` compares against this, so a sync that changes only the
 	 * snapshot — and not the document — still has to update the mark.
 	 */
@@ -108,6 +139,7 @@ export class SyncState {
 	}
 
 	#loadFrom(keys: ListKeySet): void {
+		this.#leave();
 		this.#keys = keys;
 
 		const stored = read(keys.code);
@@ -165,10 +197,14 @@ export class SyncState {
 		this.message = null;
 		trace(`join (${keep ? 'keep' : 'discard'})`);
 
+		const epoch = this.#epoch;
+
 		try {
 			// Derived lazily: PBKDF2 at 300,000 iterations is deliberately slow, so
 			// its cost lands on an explicit tap rather than on first paint.
 			const room = await derive(code);
+			if (epoch !== this.#epoch) return null;
+
 			const pulled = await pull({
 				roomId: room.roomId,
 				key: room.key,
@@ -177,6 +213,9 @@ export class SyncState {
 				etag: null,
 				lastSynced: null
 			});
+
+			// The list this was joining into has gone while the request was out.
+			if (epoch !== this.#epoch) return null;
 
 			if (pulled.status !== 'ok') {
 				this.#apply(pulled.outcome);
@@ -200,12 +239,12 @@ export class SyncState {
 			// silently does nothing — see it, say it, same as every outcome above.
 			const outcome: SyncOutcome = { status: 'error', message: errorText(error) };
 			trace(`join threw: ${outcome.message}`);
+			// About a list that has gone, and not to be said over the one open now.
+			if (epoch !== this.#epoch) return null;
 			this.#apply(outcome);
 			return outcome;
 		} finally {
-			this.busy = false;
-			this.lastSyncAt = Date.now();
-			this.now = Date.now();
+			this.#landed(epoch);
 		}
 	}
 
@@ -243,17 +282,18 @@ export class SyncState {
 		this.message = null;
 		trace('sync');
 
+		const epoch = this.#epoch;
+
 		try {
 			return await this.#run();
 		} catch (error) {
 			const outcome: SyncOutcome = { status: 'error', message: errorText(error) };
 			trace(`sync threw: ${outcome.message}`);
+			if (epoch !== this.#epoch) return null;
 			this.#apply(outcome);
 			return outcome;
 		} finally {
-			this.busy = false;
-			this.lastSyncAt = Date.now();
-			this.now = Date.now();
+			this.#landed(epoch);
 		}
 	}
 
@@ -262,25 +302,35 @@ export class SyncState {
 	 * clock, and — for `join()` — confirming the code is good before this
 	 * ever runs.
 	 */
-	async #run(prefetched?: { remote: Doc | null; v: number }): Promise<SyncOutcome> {
-		// Not derived again if join() already did: `??=` is a no-op once #room
-		// is set, so the 300,000-iteration cost is never paid twice for one
-		// join.
-		this.#room ??= await derive(this.code!);
+	async #run(prefetched?: { remote: Doc | null; v: number }): Promise<SyncOutcome | null> {
+		const epoch = this.#epoch;
+
+		// Not derived again if join() already did, so the 300,000-iteration cost
+		// is never paid twice for one join.
+		const room = this.#room ?? (await derive(this.code!));
+
+		// Left while the key was being derived: this room belongs to a list that
+		// is gone, and keeping it would sync the next list under its address.
+		if (epoch !== this.#epoch) return null;
+		this.#room = room;
 
 		// What went out. The sheet stays editable for the whole round trip, so
 		// whatever is on it by the time the answer comes back may be more.
 		const sent = sheet.doc;
 
 		const outcome = await syncNow({
-			roomId: this.#room.roomId,
-			key: this.#room.key,
-			writeToken: this.#room.writeToken,
+			roomId: room.roomId,
+			key: room.key,
+			writeToken: room.writeToken,
 			local: sent,
 			etag: this.#etag,
 			lastSynced: this.#lastSynced,
 			prefetched
 		});
+
+		// And left while the request was out: what came back is about that list,
+		// and the sheet and keys now belong to another one, or to nothing.
+		if (epoch !== this.#epoch) return null;
 
 		this.#apply(outcome, sent);
 		return outcome;
@@ -296,6 +346,8 @@ export class SyncState {
 	 * unwritten opening group.
 	 */
 	forget(): void {
+		this.#leave();
+
 		for (const key of [
 			this.#keys.doc,
 			this.#keys.code,
@@ -313,6 +365,8 @@ export class SyncState {
 		// Back to a device that has never synced: no code until there is a list
 		// and a sync to put it under.
 		this.code = null;
+		// What the last attempt said was about the list that has just gone.
+		this.message = null;
 
 		sheet.forget();
 		sheet.switchTo(this.#keys);
@@ -338,8 +392,13 @@ export class SyncState {
 			this.#unreachable = false;
 			this.#lastSynced = outcome.doc;
 			this.#etag = `"${outcome.v}"`;
-			write(this.#keys.version, this.#etag);
-			write(this.#keys.synced, canonical(outcome.doc));
+			// The snapshot before the version that vouches for it: a version left
+			// beside an older snapshot would answer a 304 with the wrong document.
+			if (write(this.#keys.synced, canonical(outcome.doc))) {
+				write(this.#keys.version, this.#etag);
+			} else {
+				remove(this.#keys.version);
+			}
 
 			this.refresh();
 			return;
@@ -356,6 +415,8 @@ function messageFor(outcome: SyncOutcome): string | null {
 		case 'offline':
 			return t.sync.errorOffline;
 		case 'refused':
+			// The write key did not match: not a fault to diagnose by number.
+			if (outcome.code === 403) return t.sync.errorForbidden;
 			// Naming the code is the point: it is the only thing that says whether
 			// the route is missing or its store is.
 			return t.sync.errorRefused({ code: outcome.code });

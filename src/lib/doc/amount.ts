@@ -160,7 +160,14 @@ function readNumber(raw: string): Figure | null {
 /** The leading amount, or nothing when it is not one after all. */
 function leadOf(text: string): RegExpExecArray | null {
 	const lead = AMOUNT.exec(text);
-	if (lead === null || lead[2] === undefined) return lead;
+	if (lead === null) return null;
+
+	/*
+	 * A number the reader cannot read — `1.2345`, or more digits than a float
+	 * holds — is not an amount. Taken as one it was lifted off the words and
+	 * then drawn as nothing, since there was no count or measure to write out.
+	 */
+	if (lead[2] === undefined) return readNumber(lead[1]) === null ? null : lead;
 
 	// A range runs upwards. `3-2` or `2-2` is not a range anyone meant, and
 	// reading it as one would put a number on the row that was never written.

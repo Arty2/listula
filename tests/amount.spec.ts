@@ -114,6 +114,12 @@ describe('reading a count', () => {
 		expect(amountsIn('2× Tomatos').amount).toBe('2×');
 	});
 
+	it('leaves a number it cannot read in the words, rather than dropping it', () => {
+		expect(amountsIn('1.2345 Apples')).toMatchObject({ amount: null, count: null });
+		expect(amountsIn('1.2345 Apples').name).toBe('1.2345 Apples');
+		expect(amountsIn('1.2345kg Flour').name).toBe('1.2345kg Flour');
+	});
+
 	it('needs a space after it, so a word is left whole', () => {
 		expect(amountsIn('2xTomatos').amount).toBeNull();
 		expect(amountsIn('2x').amount).toBeNull();

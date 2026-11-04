@@ -145,8 +145,12 @@
 		const over = spill(draft, LIMITS.taskText);
 		if (over === null) return;
 
-		draft = over.head;
-		if (onadd(draft)) {
+		/*
+		 * Cut only once the head has become a task. Refused — the list is full —
+		 * and the row keeps everything that was typed into it: shortened first,
+		 * the rest of the sentence went nowhere.
+		 */
+		if (onadd(over.head)) {
 			tapped();
 			draft = over.tail;
 			queueMicrotask(() => input?.setSelectionRange(draft.length, draft.length));
