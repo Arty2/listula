@@ -1123,6 +1123,14 @@
 		min-height: 0;
 		overflow-y: auto;
 		/*
+		 * Said again here, not inherited from `.menu`. A scroller is where the
+		 * browser stops reading `touch-action` up the tree, so the panel's own
+		 * `pan-y` never reached a finger on the writing: Chrome took a sideways
+		 * drag as its own pan, cancelled the pointer a few pixels in, and the
+		 * paper slid, gave, and swung home without turning.
+		 */
+		touch-action: pan-y;
+		/*
 		 * In by the same margin the sheet keeps its writing off its own edges
 		 * by, so a line in the panel starts exactly where a task on the sheet
 		 * starts. The room above and below belongs to the panel, which is what
@@ -1406,6 +1414,8 @@
 		text-align: left;
 		max-height: 40vh;
 		overflow-y: auto;
+		/* A scroller of its own, so it needs saying again — see `.scroll`. */
+		touch-action: pan-y;
 	}
 
 	.entry {
