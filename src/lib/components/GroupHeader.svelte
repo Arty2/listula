@@ -29,13 +29,17 @@
 		/** What the group's unfinished tasks come to, or nothing to total. */
 		total: string | null;
 		/**
-		 * Asked for by the sheet: open the name for changing, caret at the end.
-		 * `open` is taken — it is how many tasks in here are still to do.
+		 * Asked for by the sheet: open the name for changing. `open` is taken —
+		 * it is how many tasks in here are still to do.
 		 *
-		 * Backspace on the empty row Enter put inside this group comes back here,
-		 * because the name is what opened it — see `back` in Sheet.
+		 * `end` puts the caret after the name: Backspace on the empty row Enter
+		 * put inside this group comes back here, because the name is what opened
+		 * it — see `back` in Sheet. `all` selects the whole of it, so the first
+		 * keystroke replaces it: the new-group `…` on a sheet that is still only
+		 * the opening group comes here instead of making a second one — see
+		 * `onNewGroupTap` in Sheet.
 		 */
-		naming: boolean;
+		naming: false | 'end' | 'all';
 		onnamed: () => void;
 		ontoggle: () => void;
 		/** A long press on the fold icon takes the whole sheet with it. */
@@ -224,10 +228,11 @@
 	$effect(() => {
 		if (!naming || editing || synthetic) return;
 
+		const from = naming === 'all' ? 0 : draft.length;
 		startEditing();
 		queueMicrotask(() => {
 			field?.focus();
-			field?.setSelectionRange(draft.length, draft.length);
+			field?.setSelectionRange(from, draft.length);
 		});
 		onnamed();
 	});

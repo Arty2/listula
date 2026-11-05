@@ -100,6 +100,7 @@ and typing stops at 200 characters, with a message saying why.
 | Fold icon     | Tap                   | Folds or unfolds the group                          |
 | Fold icon     | Hold                  | Folds every group, or unfolds all if all are folded |
 | Name field    | `Enter`               | Saves; on an empty group, also opens its first task |
+| New-group `…` | Tap                   | Opens a new group's name; see below                 |
 | New-group `…` | `Enter`               | Creates the group and opens its first task          |
 | Carried group | Drop on the list name | Opens the other lists; drop on one to move it there |
 | Carried group | Drop on `+ NEW LIST`  | Creates a new list containing the group             |
@@ -111,6 +112,10 @@ With nothing done it reads `(3)`.
 The scribble beside a group appears only while its name is open or the group
 is folded. It clears the done tasks, or deletes the group once everything in
 it is done. Dragging a task onto the new-group row creates a group for it.
+
+While the list is still only its first group, empty and under its original
+name, tapping the new-group `…` opens that group's name instead, with the
+whole name selected.
 
 A list that a group was moved to is marked with an asterisk until the tab is
 closed.

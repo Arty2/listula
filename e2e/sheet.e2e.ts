@@ -47,6 +47,38 @@ test('a fresh sheet is one named group, one empty box, and an ellipsis', async (
 	await expect(page.getByRole('checkbox')).toHaveCount(0);
 });
 
+test('on a sheet nobody has written on, the ellipsis opens the name instead', async ({ page }) => {
+	/*
+	 * One group, called what it was called on arrival, with nothing in it: a
+	 * second group beside an empty "Listula" is not what a tap there meant.
+	 * The whole name is selected, so the first keystroke replaces it.
+	 */
+	await page.getByRole('button', { name: 'Add a group' }).click();
+
+	await expect(page.getByRole('textbox', { name: 'New group' })).toHaveCount(0);
+	const name = page.getByRole('textbox', { name: 'Group title' });
+	await expect(name).toBeFocused();
+	expect(
+		await name.evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd])
+	).toStrictEqual([0, 'Listula'.length]);
+
+	await page.keyboard.type('Market');
+	await page.keyboard.press('Enter');
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('button', { name: 'Market' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Listula' })).toHaveCount(0);
+
+	// Named now, so the next tap makes a group like any other.
+	await page.getByRole('button', { name: 'Add a group' }).click();
+	await expect(page.getByRole('textbox', { name: 'New group' })).toBeFocused();
+});
+
+test('the ellipsis makes a group once the first one has anything in it', async ({ page }) => {
+	await addTask(page, 'Bread');
+	await page.getByRole('button', { name: 'Add a group' }).click();
+	await expect(page.getByRole('textbox', { name: 'New group' })).toBeFocused();
+});
+
 test('a title being typed looks like the title it becomes', async ({ page }) => {
 	await page.getByRole('button', { name: 'Listula' }).dblclick();
 
@@ -264,6 +296,8 @@ test('the group mark keeps out of a list being read', async ({ page }) => {
 });
 
 test('makes a group, collapses it, and remembers that locally', async ({ page }) => {
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	const title = page.getByRole('textbox', { name: 'New group' });
 	await title.fill('Market');
@@ -968,6 +1002,8 @@ test('Backspace on the first task in a group deletes nothing', async ({ page }) 
 });
 
 test('Enter on the row that makes a group opens its first task', async ({ page }) => {
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	const made = page.getByRole('textbox', { name: 'New group' });
 	await made.fill('Market');
@@ -992,6 +1028,8 @@ test('Enter on the row that makes a group opens its first task', async ({ page }
 });
 
 test('tapping away from that row makes the group and nothing else', async ({ page }) => {
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	await page.getByRole('textbox', { name: 'New group' }).fill('Market');
 
@@ -1004,6 +1042,8 @@ test('tapping away from that row makes the group and nothing else', async ({ pag
 });
 
 test('Enter on an empty group’s title opens a task inside it', async ({ page }) => {
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	const made = page.getByRole('textbox', { name: 'New group' });
 	await made.fill('Market');
@@ -1031,6 +1071,8 @@ test('Enter on an empty group’s title opens a task inside it', async ({ page }
 });
 
 test('Backspace out of that first row goes back to the name', async ({ page }) => {
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	const made = page.getByRole('textbox', { name: 'New group' });
 	await made.fill('Market');

@@ -251,6 +251,8 @@ test('EXPORT copies the whole list and says how many', async ({ page, context })
 test('EXPORT then IMPORT into an empty list reproduces everything', async ({ page, context }) => {
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
+	// Written on, so the ellipsis makes a second group rather than naming the first.
+	await addTask(page, 'Salt');
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	const title = page.getByRole('textbox', { name: 'New group' });
 	await title.fill('Market');

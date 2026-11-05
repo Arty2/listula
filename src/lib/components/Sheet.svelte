@@ -15,7 +15,7 @@
 	import { emptyDoc, type State, type Task } from '$lib/doc/types';
 	import { t } from '$lib/i18n';
 	import { Burst } from '$lib/state/burst';
-	import { sheet } from '$lib/state/doc.svelte';
+	import { firstGroupTitle, sheet } from '$lib/state/doc.svelte';
 	import { lists } from '$lib/state/lists.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 
@@ -49,7 +49,25 @@
 	 * row the name itself opened. Cleared as soon as the header reports it, the
 	 * same way `opening` is.
 	 */
-	let openingGroup = $state<string | null>(null);
+	let openingGroup = $state<{ id: string; how: 'end' | 'all' } | null>(null);
+
+	/**
+	 * The opening group, when it is still the whole of the sheet: the only group,
+	 * under the name it was given, with nothing in it. A sheet like that has not
+	 * been named yet, so a tap on the new-group `…` is somebody reaching for a
+	 * name rather than for a second group — two groups, one of them an empty
+	 * "Listula", is not what anyone tapping there meant.
+	 */
+	const untouched = $derived.by(() => {
+		const real = sheet.groups.filter((group) => !group.synthetic);
+		const only = real.length === 1 ? real[0] : null;
+		return only && only.title === firstGroupTitle() && only.tasks.length === 0 ? only : null;
+	});
+
+	function onNewGroupTap() {
+		if (untouched) openingGroup = { id: untouched.id, how: 'all' };
+		else newGroupOpen = true;
+	}
 
 	const overLimit = $derived(sheet.taskCount > LIMITS.tasks);
 
@@ -254,7 +272,7 @@
 		 * somewhere no task is, and the task itself with it.
 		 */
 		opening = null;
-		openingGroup = groupId;
+		openingGroup = { id: groupId, how: 'end' };
 	}
 
 	/**
@@ -615,7 +633,7 @@
 				class="caps"
 				disabled={!sheet.canAddGroup}
 				aria-label={t.group.add}
-				onclick={() => (newGroupOpen = true)}
+				onclick={onNewGroupTap}
 			>
 				…
 			</button>
@@ -668,7 +686,7 @@
 				finished={group.tasks.every((task) => task.state === 'done')}
 				synthetic={group.synthetic}
 				total={fig.total}
-				naming={openingGroup === group.id}
+				naming={openingGroup?.id === group.id ? openingGroup.how : false}
 				onnamed={() => (openingGroup = null)}
 				ontoggle={() => ui.toggleCollapsed(group.id)}
 				onfoldall={foldAll}
