@@ -114,8 +114,8 @@ is folded. It clears the done tasks, or deletes the group once everything in
 it is done. Dragging a task onto the new-group row creates a group for it.
 
 While the list is still only its first group, empty and under its original
-name, tapping the new-group `…` opens that group's name instead, with the
-whole name selected.
+name, tapping the new-group `…` opens that group's name instead, emptied for
+a new one. Leaving it empty keeps the old name.
 
 A list that a group was moved to is marked with an asterisk until the tab is
 closed.

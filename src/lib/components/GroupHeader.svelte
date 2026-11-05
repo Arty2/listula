@@ -34,12 +34,12 @@
 		 *
 		 * `end` puts the caret after the name: Backspace on the empty row Enter
 		 * put inside this group comes back here, because the name is what opened
-		 * it — see `back` in Sheet. `all` selects the whole of it, so the first
-		 * keystroke replaces it: the new-group `…` on a sheet that is still only
+		 * it — see `back` in Sheet. `blank` opens it empty, so what is typed
+		 * stands in its place: the new-group `…` on a sheet that is still only
 		 * the opening group comes here instead of making a second one — see
 		 * `onNewGroupTap` in Sheet.
 		 */
-		naming: false | 'end' | 'all';
+		naming: false | 'end' | 'blank';
 		onnamed: () => void;
 		ontoggle: () => void;
 		/** A long press on the fold icon takes the whole sheet with it. */
@@ -80,6 +80,12 @@
 	}: Props = $props();
 
 	let editing = $state(false);
+	/**
+	 * Opened empty in place of the name it had (`naming === 'blank'`). Left
+	 * empty, the name it had stays: the field was cleared for the writer, not
+	 * by them, and an untitled group is not what anybody asked for.
+	 */
+	let blanked = false;
 	let draft = $state('');
 	let field = $state<HTMLTextAreaElement | null>(null);
 	/** Set for the length of the pop, so the group leaves rather than vanishes. */
@@ -228,17 +234,21 @@
 	$effect(() => {
 		if (!naming || editing || synthetic) return;
 
-		const from = naming === 'all' ? 0 : draft.length;
 		startEditing();
+		blanked = naming === 'blank';
+		if (blanked) draft = '';
 		queueMicrotask(() => {
 			field?.focus();
-			field?.setSelectionRange(from, draft.length);
+			field?.setSelectionRange(draft.length, draft.length);
 		});
 		onnamed();
 	});
 
 	function commit() {
 		editing = false;
+		const kept = blanked && draft.trim() === '';
+		blanked = false;
+		if (kept) return;
 		if (draft.trim() !== title) {
 			onrename(draft.trim());
 			tapped();
@@ -269,6 +279,7 @@
 			// The name goes back before the field does: taking a focused field out
 			// of the document blurs it, and the blur commits. Escape discards.
 			draft = title;
+			blanked = false;
 			editing = false;
 		}
 	}

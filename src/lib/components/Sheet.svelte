@@ -49,7 +49,7 @@
 	 * row the name itself opened. Cleared as soon as the header reports it, the
 	 * same way `opening` is.
 	 */
-	let openingGroup = $state<{ id: string; how: 'end' | 'all' } | null>(null);
+	let openingGroup = $state<{ id: string; how: 'end' | 'blank' } | null>(null);
 
 	/**
 	 * The opening group, when it is still the whole of the sheet: the only group,
@@ -65,7 +65,7 @@
 	});
 
 	function onNewGroupTap() {
-		if (untouched) openingGroup = { id: untouched.id, how: 'all' };
+		if (untouched) openingGroup = { id: untouched.id, how: 'blank' };
 		else newGroupOpen = true;
 	}
 

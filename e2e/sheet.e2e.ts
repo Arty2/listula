@@ -51,16 +51,14 @@ test('on a sheet nobody has written on, the ellipsis opens the name instead', as
 	/*
 	 * One group, called what it was called on arrival, with nothing in it: a
 	 * second group beside an empty "Listula" is not what a tap there meant.
-	 * The whole name is selected, so the first keystroke replaces it.
+	 * The name it came with is taken away, so what is typed stands in its place.
 	 */
 	await page.getByRole('button', { name: 'Add a group' }).click();
 
 	await expect(page.getByRole('textbox', { name: 'New group' })).toHaveCount(0);
 	const name = page.getByRole('textbox', { name: 'Group title' });
 	await expect(name).toBeFocused();
-	expect(
-		await name.evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd])
-	).toStrictEqual([0, 'Listula'.length]);
+	await expect(name).toHaveValue('');
 
 	await page.keyboard.type('Market');
 	await page.keyboard.press('Enter');
@@ -71,6 +69,21 @@ test('on a sheet nobody has written on, the ellipsis opens the name instead', as
 	// Named now, so the next tap makes a group like any other.
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	await expect(page.getByRole('textbox', { name: 'New group' })).toBeFocused();
+});
+
+test('left empty, the name it was opened for stays', async ({ page }) => {
+	await page.getByRole('button', { name: 'Add a group' }).click();
+	await expect(page.getByRole('textbox', { name: 'Group title' })).toHaveValue('');
+
+	// Cleared for the writer, not by them: walking away is not asking for no name.
+	await page.locator('main').click({ position: { x: 200, y: 420 } });
+	await expect(page.getByRole('button', { name: 'Listula' })).toBeVisible();
+
+	// Escape the same.
+	await page.getByRole('button', { name: 'Add a group' }).click();
+	await page.keyboard.type('Mar');
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('button', { name: 'Listula' })).toBeVisible();
 });
 
 test('the ellipsis makes a group once the first one has anything in it', async ({ page }) => {
