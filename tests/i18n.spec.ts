@@ -3,6 +3,7 @@ import { t } from '../src/lib/i18n';
 import { el } from '../src/lib/i18n/el';
 import { en } from '../src/lib/i18n/en';
 import { language } from '../src/lib/i18n/language.svelte';
+import { isFirstGroupTitle } from '../src/lib/state/doc.svelte';
 
 /*
  * The catalogue is data, so what is worth testing about it is that none of it
@@ -174,5 +175,26 @@ describe('t', () => {
 	it('forwards a function leaf rather than copying it', () => {
 		language.override = 'el';
 		expect(t.group.named({ title: 'Weekend' })).toBe(el.group.named({ title: 'Weekend' }));
+	});
+});
+
+describe('isFirstGroupTitle', () => {
+	afterEach(() => {
+		language.override = null;
+	});
+
+	it('knows the first group by the name any language gave it', () => {
+		// A list made on a Greek phone is still unnamed when read in English.
+		language.override = 'en';
+		expect(isFirstGroupTitle(en.doc.firstGroup)).toBe(true);
+		expect(isFirstGroupTitle(el.doc.firstGroup)).toBe(true);
+		language.override = 'el';
+		expect(isFirstGroupTitle(en.doc.firstGroup)).toBe(true);
+	});
+
+	it('does not mistake a name somebody typed for it', () => {
+		expect(isFirstGroupTitle('Market')).toBe(false);
+		expect(isFirstGroupTitle('')).toBe(false);
+		expect(isFirstGroupTitle(en.doc.firstGroup.toLowerCase())).toBe(false);
 	});
 });

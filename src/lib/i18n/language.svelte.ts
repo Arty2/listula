@@ -4,7 +4,8 @@ import { en } from './en';
 import type { Messages } from './en';
 import { detectLocale, resolveLocale, type Locale } from './locales';
 
-const CATALOGUES: Record<Locale, Messages> = { en, el };
+/** Every catalogue the app ships, for the rare question that is not about the current one. */
+export const CATALOGUES: Record<Locale, Messages> = { en, el };
 
 /**
  * Which catalogue the app is showing, and the one thing that can override it.

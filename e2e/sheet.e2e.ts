@@ -43,7 +43,7 @@ test('a fresh sheet is one named group, one empty box, and an ellipsis', async (
 	expect(await title.innerText()).toBe('LISTULA');
 
 	await expect(page.getByRole('button', { name: 'Add a task' })).toHaveCount(1);
-	await expect(page.getByRole('button', { name: 'Add a group' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Name the list' })).toBeVisible();
 	await expect(page.getByRole('checkbox')).toHaveCount(0);
 });
 
@@ -53,7 +53,7 @@ test('on a sheet nobody has written on, the ellipsis opens the name instead', as
 	 * second group beside an empty "Listula" is not what a tap there meant.
 	 * The name it came with is taken away, so what is typed stands in its place.
 	 */
-	await page.getByRole('button', { name: 'Add a group' }).click();
+	await page.getByRole('button', { name: 'Name the list' }).click();
 
 	await expect(page.getByRole('textbox', { name: 'New group' })).toHaveCount(0);
 	const name = page.getByRole('textbox', { name: 'Group title' });
@@ -66,13 +66,14 @@ test('on a sheet nobody has written on, the ellipsis opens the name instead', as
 	await expect(page.getByRole('button', { name: 'Market' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Listula' })).toHaveCount(0);
 
-	// Named now, so the next tap makes a group like any other.
+	// Named now, so the next tap makes a group like any other, and says so.
+	await expect(page.getByRole('button', { name: 'Name the list' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Add a group' }).click();
 	await expect(page.getByRole('textbox', { name: 'New group' })).toBeFocused();
 });
 
 test('left empty, the name it was opened for stays', async ({ page }) => {
-	await page.getByRole('button', { name: 'Add a group' }).click();
+	await page.getByRole('button', { name: 'Name the list' }).click();
 	await expect(page.getByRole('textbox', { name: 'Group title' })).toHaveValue('');
 
 	// Cleared for the writer, not by them: walking away is not asking for no name.
@@ -80,7 +81,7 @@ test('left empty, the name it was opened for stays', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Listula' })).toBeVisible();
 
 	// Escape the same.
-	await page.getByRole('button', { name: 'Add a group' }).click();
+	await page.getByRole('button', { name: 'Name the list' }).click();
 	await page.keyboard.type('Mar');
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('button', { name: 'Listula' })).toBeVisible();
@@ -98,7 +99,7 @@ test('a title being typed looks like the title it becomes', async ({ page }) => 
 	const input = page.getByRole('textbox', { name: 'Group title' });
 	await expect(input).toBeVisible();
 
-	const title = page.getByRole('button', { name: 'Add a group' });
+	const title = page.getByRole('button', { name: 'Name the list' });
 	const face = await title.evaluate((el) => getComputedStyle(el).fontFamily);
 
 	await expect(input).toHaveCSS('text-transform', 'uppercase');
@@ -114,7 +115,7 @@ test('a title being typed looks like the title it becomes', async ({ page }) => 
 
 test('the new-group placeholder lines up with the group titles', async ({ page }) => {
 	const title = await page.getByRole('button', { name: 'Listula' }).boundingBox();
-	const placeholder = await page.getByRole('button', { name: 'Add a group' }).boundingBox();
+	const placeholder = await page.getByRole('button', { name: 'Name the list' }).boundingBox();
 
 	// Same left edge: it is the same thing, one step earlier.
 	expect(placeholder!.x).toBeCloseTo(title!.x, 0);

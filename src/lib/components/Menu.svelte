@@ -906,7 +906,8 @@
 		display: flex;
 		flex-direction: column;
 		outline: none;
-		touch-action: pan-y;
+		/* Sideways is the turn; pinch stays the reader's — see `.scroll`. */
+		touch-action: pan-y pinch-zoom;
 		translate: calc(-50% + var(--slide, 0px)) 0;
 
 		/*
@@ -1125,11 +1126,12 @@
 		/*
 		 * Said again here, not inherited from `.menu`. A scroller is where the
 		 * browser stops reading `touch-action` up the tree, so the panel's own
-		 * `pan-y` never reached a finger on the writing: Chrome took a sideways
+		 * value never reached a finger on the writing: Chrome took a sideways
 		 * drag as its own pan, cancelled the pointer a few pixels in, and the
-		 * paper slid, gave, and swung home without turning.
+		 * paper slid, gave, and swung home without turning. Pinch is spelt out
+		 * for the reason the sheet spells it out: `pan-y` alone takes zoom away.
 		 */
-		touch-action: pan-y;
+		touch-action: pan-y pinch-zoom;
 		/*
 		 * In by the same margin the sheet keeps its writing off its own edges
 		 * by, so a line in the panel starts exactly where a task on the sheet
@@ -1415,7 +1417,7 @@
 		max-height: 40vh;
 		overflow-y: auto;
 		/* A scroller of its own, so it needs saying again — see `.scroll`. */
-		touch-action: pan-y;
+		touch-action: pan-y pinch-zoom;
 	}
 
 	.entry {

@@ -37,6 +37,7 @@ export const el = {
 	group: {
 		new: 'Νέα ομάδα',
 		add: 'Προσθήκη ομάδας',
+		nameList: 'Ονομασία της λίστας',
 		title: 'Τίτλος ομάδας',
 		untitled: 'Ομάδα χωρίς τίτλο',
 		untitledInSentence: 'η ομάδα χωρίς τίτλο',

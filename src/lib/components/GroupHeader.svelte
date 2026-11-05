@@ -220,6 +220,8 @@
 	function startEditing() {
 		if (synthetic) return;
 		draft = title;
+		// Only the sheet's request opens it blank, and it says so after this.
+		blanked = false;
 		editing = true;
 	}
 

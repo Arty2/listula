@@ -10,12 +10,12 @@
 	import { LIMITS } from '$lib/doc/limits';
 	import { handLine } from '$lib/draw/hand';
 	import { seedFrom } from '$lib/draw/rng';
-	import { taken } from '$lib/feel';
+	import { taken, tapped } from '$lib/feel';
 	import { drag, NEW_GROUP, NEW_LIST, type DropTarget, type GroupDrop } from '$lib/dnd/drag.svelte';
 	import { emptyDoc, type State, type Task } from '$lib/doc/types';
 	import { t } from '$lib/i18n';
 	import { Burst } from '$lib/state/burst';
-	import { firstGroupTitle, sheet } from '$lib/state/doc.svelte';
+	import { isFirstGroupTitle, sheet } from '$lib/state/doc.svelte';
 	import { lists } from '$lib/state/lists.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 
@@ -61,10 +61,11 @@
 	const untouched = $derived.by(() => {
 		const real = sheet.groups.filter((group) => !group.synthetic);
 		const only = real.length === 1 ? real[0] : null;
-		return only && only.title === firstGroupTitle() && only.tasks.length === 0 ? only : null;
+		return only && isFirstGroupTitle(only.title) && only.tasks.length === 0 ? only : null;
 	});
 
 	function onNewGroupTap() {
+		tapped();
 		if (untouched) openingGroup = { id: untouched.id, how: 'blank' };
 		else newGroupOpen = true;
 	}
@@ -632,7 +633,7 @@
 				type="button"
 				class="caps"
 				disabled={!sheet.canAddGroup}
-				aria-label={t.group.add}
+				aria-label={untouched ? t.group.nameList : t.group.add}
 				onclick={onNewGroupTap}
 			>
 				…
