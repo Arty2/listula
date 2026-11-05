@@ -65,6 +65,12 @@ export const en = {
 	group: {
 		new: 'New group',
 		add: 'Add a group',
+		/*
+		 * The same `…` while the list is still only its first group, empty and
+		 * unnamed: the tap opens that group's name rather than adding one, and
+		 * the name of a list is its first group's.
+		 */
+		nameList: 'Name the list',
 		title: 'Group title',
 		untitled: 'Untitled group',
 		/*

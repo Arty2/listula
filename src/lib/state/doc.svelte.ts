@@ -7,6 +7,7 @@ import { emptyDoc, type Doc, type State } from '$lib/doc/types';
 import { parseDoc } from '$lib/doc/validate';
 import { openCount, view, type ViewGroup } from '$lib/doc/view';
 import { t } from '$lib/i18n';
+import { CATALOGUES } from '$lib/i18n/language.svelte';
 import { KEYS, keysFor, persist, read, write, type ListKeySet } from './storage';
 
 /**
@@ -26,6 +27,17 @@ import { KEYS, keysFor, persist, read, write, type ListKeySet } from './storage'
  */
 export function firstGroupTitle(): string {
 	return t.doc.firstGroup;
+}
+
+/**
+ * Whether a title is the one a first group arrives with, in any language.
+ *
+ * Any and not only the current one: the title was written in whichever
+ * language created the list, and a Greek phone's Λιστούλα opened in an English
+ * tab is still a group nobody has named.
+ */
+export function isFirstGroupTitle(title: string): boolean {
+	return Object.values(CATALOGUES).some((catalogue) => catalogue.doc.firstGroup === title);
 }
 
 /**
