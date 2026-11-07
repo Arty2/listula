@@ -3,6 +3,7 @@
 	import Perforation from './Perforation.svelte';
 	import { langOf } from '$lib/doc/lang';
 	import { LIMITS } from '$lib/doc/limits';
+	import { typewriter } from '$lib/doc/typewriter';
 	import { scribbleMark, SCRIBBLE } from '$lib/draw/hand';
 	import { drag, dragGroup, type GroupDrop } from '$lib/dnd/drag.svelte';
 	import { longPress } from '$lib/dnd/longpress';
@@ -460,7 +461,9 @@
 			collapsed, which is when it is worth most.
 		-->
 		{#if total !== null}
-			<span class="num total">{total}</span>
+			<span class="num total" aria-hidden="true">{typewriter(total)}</span><span class="sr-only"
+				>{total}</span
+			>
 		{/if}
 
 		{#if mark !== null}

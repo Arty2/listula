@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { typewriter } from '../src/lib/doc/typewriter';
 import { fromMenu } from './menu';
 
 /*
@@ -45,24 +46,24 @@ test('the group header says what the list still comes to', async ({ page }) => {
 	await theList(page);
 
 	// Everything is still to buy, and five leeks cost five times ten.
-	await expect(total(page)).toHaveText('126,06');
+	await expect(total(page)).toHaveText(typewriter('126,06'));
 
 	// The leeks go in the basket. Done is bought, so the whole line stops
 	// counting — its count goes with it.
 	await task(page, '5 Leeks 10').click();
-	await expect(total(page)).toHaveText('76,06');
+	await expect(total(page)).toHaveText(typewriter('76,06'));
 });
 
 test('a count multiplies the price, and the row still shows what one costs', async ({ page }) => {
 	await addTask(page, '2x Tomatos 5,08');
-	await expect(total(page)).toHaveText('10,16');
+	await expect(total(page)).toHaveText(typewriter('10,16'));
 
 	const row = page.getByRole('button', { name: '2x Tomatos 5,08', exact: true });
-	await expect(row.locator('.cost')).toHaveText('5,08');
+	await expect(row.locator('.cost')).toHaveText(typewriter('5,08'));
 
 	// No count is one of the thing, not none of it.
 	await addTask(page, 'Onions 5,90');
-	await expect(total(page)).toHaveText('16,06');
+	await expect(total(page)).toHaveText(typewriter('16,06'));
 });
 
 test('a weight is written one way and is not a count', async ({ page }) => {
@@ -71,29 +72,29 @@ test('a weight is written one way and is not a count', async ({ page }) => {
 
 	// Written out in the one form each unit has, lowercase under the caps.
 	const potatos = page.getByRole('button', { name: '1,5k Potatos 3,00', exact: true });
-	await expect(potatos.locator('.amount')).toHaveText('1,5kg');
-	expect(await potatos.locator('.amount').innerText()).toBe('1,5kg');
+	await expect(potatos.locator('.amount')).toHaveText(typewriter('1,5kg'));
+	expect(await potatos.locator('.amount').innerText()).toBe(typewriter('1,5kg'));
 	const feta = page.getByRole('button', { name: '300gr Feta 4,20', exact: true });
-	await expect(feta.locator('.amount')).toHaveText('300g');
+	await expect(feta.locator('.amount')).toHaveText(typewriter('300g'));
 
 	// One bag at 3,00 and one pack at 4,20, not three hundred of them.
-	await expect(total(page)).toHaveText('7,20');
+	await expect(total(page)).toHaveText(typewriter('7,20'));
 });
 
 test('half counts in full, because half a task is still on the list', async ({ page }) => {
 	await addTask(page, 'Bread 10');
 	await addTask(page, 'Milk 20');
-	await expect(total(page)).toHaveText('30');
+	await expect(total(page)).toHaveText(typewriter('30'));
 
 	await task(page, 'Milk 20').focus();
 	await page.keyboard.press('Shift+ ');
 	await expect(task(page, 'Milk 20')).toHaveAttribute('aria-checked', 'mixed');
-	await expect(total(page)).toHaveText('30');
+	await expect(total(page)).toHaveText(typewriter('30'));
 
 	// And done stops counting from the same place.
 	await task(page, 'Milk 20').click();
 	await expect(task(page, 'Milk 20')).toHaveAttribute('aria-checked', 'true');
-	await expect(total(page)).toHaveText('10');
+	await expect(total(page)).toHaveText(typewriter('10'));
 });
 
 test('a group with no prices in it has no total', async ({ page }) => {
@@ -101,7 +102,7 @@ test('a group with no prices in it has no total', async ({ page }) => {
 	await expect(total(page)).toHaveCount(0);
 
 	await addTask(page, 'Milk 2,50');
-	await expect(total(page)).toHaveText('2,50');
+	await expect(total(page)).toHaveText(typewriter('2,50'));
 });
 
 test('the total stays when the group is collapsed or being renamed', async ({ page }) => {
@@ -109,12 +110,12 @@ test('the total stays when the group is collapsed or being renamed', async ({ pa
 
 	await page.getByRole('button', { name: 'Collapse group' }).click();
 	await expect(page.getByRole('button', { name: 'Expand group' })).toBeVisible();
-	await expect(total(page)).toHaveText('126,06');
+	await expect(total(page)).toHaveText(typewriter('126,06'));
 
 	await page.getByRole('button', { name: 'Expand group' }).click();
 	await page.getByRole('button', { name: 'Listula' }).dblclick();
 	await expect(page.getByRole('textbox', { name: 'Group title' })).toBeVisible();
-	await expect(total(page)).toHaveText('126,06');
+	await expect(total(page)).toHaveText(typewriter('126,06'));
 });
 
 test('a group writes its numbers one way, whatever way they were typed', async ({ page }) => {
@@ -124,7 +125,12 @@ test('a group writes its numbers one way, whatever way they were typed', async (
 	const shown = await page.evaluate(() =>
 		[...document.querySelectorAll('.tasks li .cost')].map((el) => el.textContent)
 	);
-	expect(shown).toStrictEqual(['5,08', '20,00', '5,90', '10,00']);
+	expect(shown).toStrictEqual([
+		typewriter('5,08'),
+		typewriter('20,00'),
+		typewriter('5,90'),
+		typewriter('10,00')
+	]);
 
 	// The stored text is untouched: the accessible name is still what was typed.
 	await expect(page.getByRole('button', { name: '3 Potatos 20.00', exact: true })).toHaveAttribute(
@@ -140,16 +146,16 @@ test('a currency mark the group agrees on goes onto every row', async ({ page })
 	const shown = await page.evaluate(() =>
 		[...document.querySelectorAll('.tasks li .cost')].map((el) => el.textContent)
 	);
-	expect(shown).toStrictEqual(['10,00€', '2,50€']);
-	await expect(total(page)).toHaveText('12,50€');
+	expect(shown).toStrictEqual([typewriter('10,00€'), typewriter('2,50€')]);
+	await expect(total(page)).toHaveText(typewriter('12,50€'));
 
 	// Two marks that disagree, and neither is put in anyone's mouth.
 	await addTask(page, 'Wine $8');
 	const disagreed = await page.evaluate(() =>
 		[...document.querySelectorAll('.tasks li .cost')].map((el) => el.textContent)
 	);
-	expect(disagreed).toStrictEqual(['10,00', '2,50', '8,00']);
-	await expect(total(page)).toHaveText('20,50');
+	expect(disagreed).toStrictEqual([typewriter('10,00'), typewriter('2,50'), typewriter('8,00')]);
+	await expect(total(page)).toHaveText(typewriter('20,50'));
 });
 
 test('every ✕ on the sheet stands in one column, out of the way', async ({ page }) => {
@@ -257,8 +263,8 @@ test('the figures are set apart, and the words are not', async ({ page }) => {
 	const price = row.locator('.cost');
 
 	// Typed `2x`, written out with the one multiplication sign the column uses.
-	await expect(count).toHaveText('2×');
-	await expect(price).toHaveText('5,08');
+	await expect(count).toHaveText(typewriter('2×'));
+	await expect(price).toHaveText(typewriter('5,08'));
 
 	// The name keeps the casing it was typed in, and the caps stay CSS.
 	await expect(name).toHaveText('Tomatos');
@@ -327,7 +333,7 @@ test('a long name with a price does not push the sheet sideways', async ({ page 
 	await page.setViewportSize({ width: 320, height: 720 });
 	await addTask(page, '12x Something rather long that has to wrap on a phone 1.234,56');
 
-	await expect(total(page)).toHaveText('14814,72');
+	await expect(total(page)).toHaveText(typewriter('14814,72'));
 	expect(
 		await page.evaluate(
 			() => document.documentElement.scrollWidth > document.documentElement.clientWidth
