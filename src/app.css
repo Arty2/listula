@@ -461,8 +461,16 @@ body {
  * Lifted rather than translated: relative positioning applies to an inline box,
  * and a figure should not have to be a flex item to sit level.
  */
+/*
+ * The figures are written in Unicode's monospace digits and letters
+ * (doc/typewriter.ts), and these are the faces that draw them as a slab serif:
+ * STIX on Apple, Cambria Math on Windows, FreeSerif on Linux. All installed
+ * faces — still one @font-face and no request. A device with none of them
+ * falls through to the mono stack, which draws the same characters without
+ * serifs, so the column lines up whatever the device has.
+ */
 .num {
-	font-family: var(--mono);
+	font-family: 'STIX Two Math', STIXGeneral, 'Cambria Math', FreeSerif, var(--mono);
 	font-variant-numeric: tabular-nums;
 	font-size: calc(1em * var(--mono-scale));
 	letter-spacing: normal;

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { typewriter } from '../src/lib/doc/typewriter';
 
 /*
  * M1's acceptance: add, edit, reorder, tri-state, group, collapse and delete
@@ -887,7 +888,7 @@ test('tapping a task takes the caret with it', async ({ page }) => {
 
 	// And because it can blur, it commits, and the row goes back to being read.
 	await page.keyboard.press('Escape');
-	await expect(page.locator('.tasks li .cost').first()).toHaveText('5,08');
+	await expect(page.locator('.tasks li .cost').first()).toHaveText(typewriter('5,08'));
 
 	/*
 	 * The same on a task that is done — where this was first noticed.

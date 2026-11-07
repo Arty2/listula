@@ -10,6 +10,7 @@
 	import { hasLink, pieces } from '$lib/doc/links';
 	import { spill, splitAt } from '$lib/doc/spill';
 	import type { State, Task } from '$lib/doc/types';
+	import { typewriter } from '$lib/doc/typewriter';
 	import { scribbleMark, SCRIBBLE } from '$lib/draw/hand';
 	import { drag, dragRow, type DropTarget } from '$lib/dnd/drag.svelte';
 	import { DOUBLE_TAP_MS } from '$lib/dnd/longpress';
@@ -626,11 +627,15 @@
 {#snippet marks()}
 	{#if shaped}
 		{#if count !== null}
-			<span class="num amount">{count}</span>
+			<span class="num amount" aria-hidden="true">{typewriter(count)}</span><span class="sr-only"
+				>{count}</span
+			>
 		{/if}
 		<span class="name">{@render written()}</span>
 		{#if cost !== null}
-			<span class="num cost">{cost}</span>
+			<span class="num cost" aria-hidden="true">{typewriter(cost)}</span><span class="sr-only"
+				>{cost}</span
+			>
 		{/if}
 	{:else}
 		{@render written()}
