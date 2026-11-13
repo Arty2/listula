@@ -4,7 +4,7 @@ import { merge } from '../src/lib/doc/merge';
 import { addGroup, addTask, deleteTask, setTaskState } from '../src/lib/doc/ops';
 import { createClock, type Ctx } from '../src/lib/doc/stamp';
 import { emptyDoc } from '../src/lib/doc/types';
-import { changedSince } from '../src/lib/state/sync.svelte';
+import { changedSince, countUnsent } from '../src/lib/state/sync.svelte';
 
 /*
  * The sheet stays editable while a sync is out, so what comes back has to be
@@ -51,5 +51,47 @@ describe('an edit made while a sync is out', () => {
 		const after = merge(answer, changedSince(sent, local));
 		expect(after.tasks.a.state).toBe('done');
 		expect(after.tasks.old).toBeUndefined();
+	});
+});
+
+describe('what has not left the device', () => {
+	function list() {
+		const ctx = ctxAt(() => 1);
+		let doc = addGroup(emptyDoc(), ctx, { id: 'g', title: 'Shop' });
+		doc = addTask(doc, ctx, { id: 'a', groupId: 'g', text: 'Milk' });
+		doc = addTask(doc, ctx, { id: 'b', groupId: 'g', text: 'Bread' });
+		return { ctx, doc };
+	}
+
+	it('is every live record on a list that has never been synced', () => {
+		const { ctx, doc } = list();
+		expect(countUnsent(deleteTask(doc, ctx, 'b'), null)).toBe(2);
+	});
+
+	it('is nothing when the two say the same, however each was built', () => {
+		const { doc } = list();
+
+		// What a reload does: the same content, no shared records, and keys in
+		// whatever order the canonical snapshot wrote them.
+		const reloaded = JSON.parse(
+			JSON.stringify(doc, (_, value) =>
+				value && typeof value === 'object' && !Array.isArray(value)
+					? Object.fromEntries(Object.entries(value).sort().reverse())
+					: value
+			)
+		);
+
+		expect(countUnsent(doc, doc)).toBe(0);
+		expect(countUnsent(doc, reloaded)).toBe(0);
+	});
+
+	it('counts a record once, whether it changed, was added or was deleted', () => {
+		const { ctx, doc } = list();
+
+		let now = setTaskState(doc, ctx, 'a', 'done');
+		now = deleteTask(now, ctx, 'b');
+		now = addTask(now, ctx, { id: 'c', groupId: 'g', text: 'Eggs' });
+
+		expect(countUnsent(now, doc)).toBe(3);
 	});
 });

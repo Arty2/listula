@@ -447,7 +447,14 @@ export function changedSince(then: Doc, now: Doc): Doc {
 	return { v: 1, groups: pick(then.groups, now.groups), tasks: pick(then.tasks, now.tasks) };
 }
 
-/** How many records differ from the last version that reached the server. */
+/**
+ * How many records differ from the last version that reached the server.
+ *
+ * Compared field by field rather than by writing both out as canonical JSON.
+ * This runs on every edit, over every record and every tombstone, and right
+ * after a sync the two documents share their records outright — so nearly all
+ * of them are answered by identity without being read at all.
+ */
 export function countUnsent(local: Doc, synced: Doc | null): number {
 	if (!synced) {
 		return (
@@ -458,14 +465,31 @@ export function countUnsent(local: Doc, synced: Doc | null): number {
 
 	let count = 0;
 
-	for (const [id, task] of Object.entries(local.tasks)) {
-		if (canonical(task) !== canonical(synced.tasks[id])) count++;
+	for (const id in local.tasks) {
+		if (!same(local.tasks[id], synced.tasks[id])) count++;
 	}
-	for (const [id, group] of Object.entries(local.groups)) {
-		if (canonical(group) !== canonical(synced.groups[id])) count++;
+	for (const id in local.groups) {
+		if (!same(local.groups[id], synced.groups[id])) count++;
 	}
 
 	return count;
+}
+
+/** Whether two records say the same thing, whatever order their keys are in. */
+function same(a: unknown, b: unknown): boolean {
+	if (a === b) return true;
+	if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) return false;
+
+	for (const key of keys) {
+		if (!Object.hasOwn(b, key)) return false;
+		if (!same((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+			return false;
+		}
+	}
+	return true;
 }
 
 export const sync = new SyncState();

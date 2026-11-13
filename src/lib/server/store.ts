@@ -149,15 +149,26 @@ export class RoomStore {
 	 * and long enough to matter on a warm instance.
 	 */
 	#cache = new Map<string, { at: number; room: StoredRoom | null }>();
+	/*
+	 * How many rooms the cache may hold before it is cleared out.
+	 *
+	 * An entry is only ever checked when its own room is read again, so one that
+	 * is never asked for a second time was never dropped — and a miss is cached
+	 * too. A warm instance therefore kept a blob of up to 128 KB for every room
+	 * it had ever served, and an entry for every address anybody had guessed at,
+	 * for as long as it stayed up.
+	 */
+	#maxCached: number;
 	#ttl: number;
 	#now: () => number;
 	#prefix: string;
 
 	constructor(
 		blobs: Blobs,
-		options: { cacheMs?: number; now?: () => number; prefix?: string } = {}
+		options: { cacheMs?: number; now?: () => number; prefix?: string; maxCached?: number } = {}
 	) {
 		this.#blobs = blobs;
+		this.#maxCached = options.maxCached ?? 256;
 		this.#ttl = options.cacheMs ?? 2000;
 		this.#now = options.now ?? Date.now;
 		this.#prefix = options.prefix ?? '';
@@ -211,7 +222,7 @@ export class RoomStore {
 			w: existing?.w ?? hash
 		};
 		await this.#blobs.put(path, JSON.stringify(next));
-		this.#cache.set(path, { at: this.#now(), room: next });
+		this.#remember(path, next);
 
 		return { status: 'ok', v: next.v };
 	}
@@ -239,8 +250,34 @@ export class RoomStore {
 		if (cached && this.#now() - cached.at < this.#ttl) return cached.room;
 
 		const room = parseStored((await this.#blobs.get(path)) ?? '');
-		this.#cache.set(path, { at: this.#now(), room });
+		this.#remember(path, room);
 		return room;
+	}
+
+	/**
+	 * Caches one room, making room for it first if the cache is full.
+	 *
+	 * What has outlived the two seconds goes; if everything in there is still
+	 * fresh the lot goes instead, which costs one extra blob read each and
+	 * nothing else — the cache is a saving, never the record.
+	 */
+	#remember(path: string, room: StoredRoom | null): void {
+		const now = this.#now();
+
+		if (this.#ttl <= 0) {
+			// Nothing kept is ever served, so nothing is kept.
+			this.#cache.clear();
+			return;
+		}
+
+		if (this.#cache.size >= this.#maxCached && !this.#cache.has(path)) {
+			for (const [key, entry] of this.#cache) {
+				if (now - entry.at >= this.#ttl) this.#cache.delete(key);
+			}
+			if (this.#cache.size >= this.#maxCached) this.#cache.clear();
+		}
+
+		this.#cache.set(path, { at: now, room });
 	}
 }
 
@@ -269,5 +306,6 @@ function parseStored(body: string): StoredRoom | null {
 }
 
 function byteLength(value: string): number {
-	return new TextEncoder().encode(value).length;
+	// Counted without making a second copy of a blob only to measure it.
+	return Buffer.byteLength(value, 'utf8');
 }

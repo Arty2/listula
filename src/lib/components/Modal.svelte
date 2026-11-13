@@ -38,13 +38,39 @@
 		dragStart = { y: event.clientY, at: performance.now() };
 	}
 
+	/** Whether the drag has taken the pointer, so the release is heard anywhere. */
+	let captured = false;
+
 	function onpointermove(event: PointerEvent) {
 		if (!dragStart) return;
+
+		/*
+		 * Let go where the panel could not hear it. Nothing held the pointer, so
+		 * a mouse dragged off the panel and released out there left the drag
+		 * armed — and the panel then followed the pointer about with no button
+		 * down, until something happened to be clicked.
+		 */
+		if (event.buttons === 0) {
+			dragStart = null;
+			captured = false;
+			offset = 0;
+			return;
+		}
+
 		// Downwards only; the panel does not lift off the top of the screen.
 		offset = Math.max(0, event.clientY - dragStart.y);
+
+		// On the first move rather than the press, as everywhere else here:
+		// capturing on the press retargets the click that follows it.
+		if (!captured && offset > 0) {
+			(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+			captured = true;
+		}
 	}
 
 	function onpointerup(event: PointerEvent) {
+		if (captured) (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+		captured = false;
 		if (!dragStart || !panel) return;
 
 		const travelled = event.clientY - dragStart.y;
@@ -72,6 +98,7 @@
 	{onpointerup}
 	onpointercancel={() => {
 		dragStart = null;
+		captured = false;
 		offset = 0;
 	}}
 >
