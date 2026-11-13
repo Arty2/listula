@@ -43,6 +43,13 @@
 	function onpointermove(event: PointerEvent) {
 		if (!from) return;
 
+		// Let go off the message before it had been moved, where it could not
+		// hear the release: nothing is being thrown, and nothing should follow.
+		if (!moved && event.buttons === 0) {
+			from = null;
+			return;
+		}
+
 		const x = Math.max(0, event.clientX - from.x);
 		const y = Math.min(0, event.clientY - from.y);
 		if (x === 0 && y === 0) return;

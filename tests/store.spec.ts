@@ -204,6 +204,26 @@ describe('reading and writing', () => {
 		expect(blobs.calls.get).toBe(1);
 	});
 
+	it('does not keep every room it has ever been asked for', async () => {
+		/*
+		 * A miss is cached too, so without a ceiling a warm instance held an
+		 * entry for every address anybody had guessed at.
+		 */
+		const small = new RoomStore(blobs, { now: () => clock, maxCached: 2 });
+		const room = (n: number) => String(n).repeat(32);
+
+		await small.read(room(1), null);
+		await small.read(room(2), null);
+		await small.read(room(3), null);
+		blobs.calls.get = 0;
+
+		// The newest is still cached; the ones it pushed out are fetched again.
+		await small.read(room(3), null);
+		expect(blobs.calls.get).toBe(0);
+		await small.read(room(1), null);
+		expect(blobs.calls.get).toBe(1);
+	});
+
 	it('does not serve a stale version to the device that just wrote it', async () => {
 		/*
 		 * Two writes inside the same millisecond, whose stored JSON happens to be

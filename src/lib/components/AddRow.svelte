@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import Counter from './Counter.svelte';
 	import { langOf } from '$lib/doc/lang';
 	import { LIMITS } from '$lib/doc/limits';
@@ -140,22 +140,50 @@
 	/*
 	 * The same rule the rows above follow: run out of room and the row fills
 	 * up, the rest starting a fresh one under it. See doc/spill.ts.
+	 *
+	 * Over and over, until what is left fits. A paste can be several rows long,
+	 * and cut once it left the row holding more than a task may: nothing more
+	 * was typed, so nothing asked again, and committing it kept the first two
+	 * hundred characters and dropped the rest without a word. The same went for
+	 * a row opened already holding what the row above could not — which is why
+	 * this also runs once as the row arrives.
 	 */
-	function oninput() {
-		const over = spill(draft, LIMITS.taskText);
-		if (over === null) return;
+	async function pour() {
+		let poured = false;
 
-		/*
-		 * Cut only once the head has become a task. Refused — the list is full —
-		 * and the row keeps everything that was typed into it: shortened first,
-		 * the rest of the sentence went nowhere.
-		 */
-		if (onadd(over.head)) {
-			tapped();
+		for (;;) {
+			const over = spill(draft, LIMITS.taskText);
+			if (over === null) break;
+
+			/*
+			 * Cut only once the head has become a task. Refused — the list is
+			 * full — and the row keeps everything that was typed into it:
+			 * shortened first, the rest of the sentence went nowhere.
+			 */
+			if (!onadd(over.head)) break;
+
+			poured = true;
 			draft = over.tail;
-			queueMicrotask(() => input?.setSelectionRange(draft.length, draft.length));
+
+			// A row placed among the tasks is told where it stands by the list
+			// around it, and that only moves on once the list has been redrawn.
+			await tick();
 		}
+
+		if (!poured) return;
+
+		tapped();
+		input?.setSelectionRange(draft.length, draft.length);
 	}
+
+	function oninput() {
+		void pour();
+	}
+
+	// Once, for what the row was handed as it opened.
+	$effect(() => {
+		untrack(() => void pour());
+	});
 
 	/**
 	 * The same cut the rows above make: what is behind the caret becomes the

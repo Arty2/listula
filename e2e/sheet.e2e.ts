@@ -1813,6 +1813,51 @@ test('a row that runs out of room fills up, and the rest starts the next one', a
 	await page.keyboard.press('Escape');
 });
 
+test('a paste several rows long becomes several rows, and none of it is lost', async ({ page }) => {
+	/*
+	 * It used to be cut once: the first row filled, and the rest sat in the
+	 * row beneath still longer than a task may be. Committing that kept two
+	 * hundred characters of it and dropped what was left.
+	 */
+	await page.getByRole('button', { name: 'Add a task' }).first().click();
+	const field = page.getByRole('textbox', { name: 'New task' });
+
+	await field.fill(`${'A'.repeat(200)} ${'B'.repeat(200)} ${'C'.repeat(200)} TAIL`);
+
+	await expect(task(page, 'A'.repeat(200))).toBeVisible();
+	await expect(task(page, 'B'.repeat(200))).toBeVisible();
+	await expect(task(page, 'C'.repeat(200))).toBeVisible();
+	await expect(page.getByRole('textbox', { name: 'New task' })).toHaveValue('TAIL');
+
+	await page.keyboard.press('Escape');
+});
+
+test('the same paste into a task that exists spills down the rows beneath it, in order', async ({
+	page
+}) => {
+	await addTask(page, 'First');
+	await addTask(page, 'Last');
+
+	await page.getByRole('button', { name: 'First', exact: true }).click();
+	const field = page.getByRole('textbox').first();
+	await field.fill(`${'A'.repeat(200)} ${'B'.repeat(200)} ${'C'.repeat(200)} TAIL`);
+
+	await expect(page.getByRole('textbox', { name: 'New task' })).toHaveValue('TAIL');
+	await page.keyboard.press('Enter');
+	await page.keyboard.press('Escape');
+
+	const rows = page.locator('[data-task] .text');
+	await expect(rows).toHaveCount(5);
+	const written = await rows.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
+	expect(written).toStrictEqual([
+		'A'.repeat(200),
+		'B'.repeat(200),
+		'C'.repeat(200),
+		'TAIL',
+		'Last'
+	]);
+});
+
 test('Enter carries what is in front of the caret down to a new task', async ({ page }) => {
 	/*
 	 * Enter means "and the next one", and it now means it from wherever the

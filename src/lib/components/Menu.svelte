@@ -374,6 +374,14 @@
 
 	function onpointermove(event: PointerEvent) {
 		if (!dragStart || !panel) return;
+
+		// Let go somewhere this panel could not hear it, before the turn had the
+		// capture — see the same guard on the sheet's side, in +page.svelte.
+		if (!moved && event.buttons === 0) {
+			dragStart = null;
+			return;
+		}
+
 		const travelled = event.clientX - dragStart.x;
 
 		if (!moved) {

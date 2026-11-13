@@ -236,6 +236,17 @@
 		if (!dragStart || !paper) return;
 
 		/*
+		 * Nothing is pressed any more, so the release happened somewhere this
+		 * element could not hear it — a mouse let go past the paper's edge before
+		 * the turn had taken the capture. Left armed, the paper then turned under
+		 * a pointer merely passing over it, with no release coming to stop it.
+		 */
+		if (!dragging && event.buttons === 0) {
+			dragStart = null;
+			return;
+		}
+
+		/*
 		 * Something was picked up after this gesture armed, and that one has the
 		 * floor.
 		 *

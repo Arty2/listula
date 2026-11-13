@@ -341,12 +341,22 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 	let dropped = false;
 	let settle: ReturnType<typeof setTimeout> | null = null;
 
+	/** Where the pointer last was, for the frames in which only the page moves. */
+	let at: { x: number; y: number } | null = null;
+
 	function autoScroll() {
 		if (edge === 0) {
 			scrolling = null;
 			return;
 		}
 		window.scrollBy(0, edge);
+		/*
+		 * The sheet has moved under a finger that has not, so what is under the
+		 * finger is something else now — and no `pointermove` says so, because
+		 * the pointer did not move. Without this the landing rule stayed on the
+		 * row it was over when the scrolling began, a screen or more behind.
+		 */
+		if (lifted && at) hooks().move(at.x, at.y);
 		scrolling = requestAnimationFrame(autoScroll);
 	}
 
@@ -363,6 +373,7 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 		if (timer) clearTimeout(timer);
 		timer = null;
 		start = null;
+		at = null;
 		edge = 0;
 
 		if (scrolling !== null) cancelAnimationFrame(scrolling);
@@ -457,6 +468,7 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 			return;
 		}
 
+		at = { x: event.clientX, y: event.clientY };
 		hooks().move(event.clientX, event.clientY);
 
 		edge =
@@ -513,11 +525,27 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 		drag.reset();
 	}
 
+	/**
+	 * The pointer went somewhere else before the press came to anything.
+	 *
+	 * A mouse is not held to the element it was pressed on the way a finger is,
+	 * so it can slide off the edge of the words — inside the eight pixels that
+	 * would have cancelled the press — and be let go out there, where this node
+	 * hears neither the move nor the release. The timer then lifted a row with
+	 * no button down and nothing left to ever put it down again. Once lifted
+	 * the pointer is captured and cannot leave, so this only ever ends a press
+	 * that is still waiting.
+	 */
+	function onleave() {
+		if (!lifted) stop();
+	}
+
 	node.addEventListener('click', onclick, { capture: true });
 	node.addEventListener('pointerdown', onpointerdown);
 	node.addEventListener('pointermove', onpointermove);
 	node.addEventListener('pointerup', onpointerup);
 	node.addEventListener('pointercancel', oncancel);
+	node.addEventListener('pointerleave', onleave);
 	node.addEventListener('lostpointercapture', onlost);
 	node.addEventListener('touchmove', ontouchmove, { passive: false });
 
@@ -544,6 +572,7 @@ function pressDrag(node: HTMLElement, hooks: () => Hooks) {
 		node.removeEventListener('pointermove', onpointermove);
 		node.removeEventListener('pointerup', onpointerup);
 		node.removeEventListener('pointercancel', oncancel);
+		node.removeEventListener('pointerleave', onleave);
 		node.removeEventListener('lostpointercapture', onlost);
 		node.removeEventListener('touchmove', ontouchmove);
 	};

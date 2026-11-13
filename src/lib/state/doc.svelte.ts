@@ -1,5 +1,6 @@
 import { handOff } from '$lib/doc/handoff';
 import { isId, newId } from '$lib/doc/id';
+import { LIMITS } from '$lib/doc/limits';
 import * as ops from '$lib/doc/ops';
 import { between } from '$lib/doc/order';
 import { createClock, latest, type Ctx } from '$lib/doc/stamp';
@@ -81,8 +82,9 @@ export class Sheet {
 	groups: ViewGroup[] = $derived(view(this.doc));
 	taskCount: number = $derived(ops.countTasks(this.doc));
 	groupCount: number = $derived(ops.countGroups(this.doc));
-	canAddTask: boolean = $derived(ops.canAddTask(this.doc));
-	canAddGroup: boolean = $derived(ops.canAddGroup(this.doc));
+	// Read off the two counts above rather than counted a second time each.
+	canAddTask: boolean = $derived(this.taskCount < LIMITS.tasks);
+	canAddGroup: boolean = $derived(this.groupCount < LIMITS.groups);
 	open: number = $derived(openCount(this.doc));
 
 	/** Called once the browser exists. Until then the sheet is empty. */
